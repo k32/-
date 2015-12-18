@@ -1,0 +1,12 @@
+
+*.hi
+
+*~
+
+*.o
+
+LinkGrammar/Parser.hs
+
+LinkGrammar/Tokenize.hs
+
+Main
