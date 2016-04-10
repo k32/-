@@ -1,2 +1,5 @@
--голос.= & -палатн.= :
+-голос.= -палатн.= :
   LLDLU+ or LLDLO+ ;
+
+<глагол-пе-пр-sub2>:  ( {EI-} & { MVI- } & ( ( {E+} & { MVv+ or (MVv+ and AInt+)
+     or (MVad+ & MVag+) } & {E+} ) or I+ or ( { IMI- } & II-)));

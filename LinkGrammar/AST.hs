@@ -37,7 +37,7 @@ data NLPWord =
 instance PrettyPrint NLPWord where
     pretty NLPWord {_nlpword = w, _nlpclass = c}
         | null c = w
-        | True = w ++ ('.' : c)
+        | True = w ++ ".[" ++ c ++ "]"
     
 -- instance Show NLPWord where
 --   show (NLPWord a b) | null b = a
@@ -54,9 +54,11 @@ data Link = Link LinkName LinkDirection
           deriving (Eq, Show)
 
 paren :: Link -> String
-paren (Link a b) = a ++ pretty b
-paren (Macro a) = pretty a
-paren a = "(" ++ pretty a ++ ")"
+paren (Link a b)     = a ++ pretty b
+paren a@(Macro _)    = pretty a
+paren a@(Optional _) = pretty a
+paren a@(Cost _)     = pretty a
+paren a              = "(" ++ pretty a ++ ")"
 
 instance PrettyPrint Link where
     pretty (Link a b)         = a ++ (pretty b)
@@ -66,7 +68,7 @@ instance PrettyPrint Link where
     pretty (Optional a)       = "{ " ++ pretty a ++ " }"
     pretty (MultiConnector a) = "@" ++ paren a
     pretty (Cost a)           = "[ " ++ pretty a ++ " ]"
-    pretty EmptyLink = "()"
+    pretty EmptyLink          = "()"
 
 data LVal = RuleDef NLPWord
           | MacroDef MacroName

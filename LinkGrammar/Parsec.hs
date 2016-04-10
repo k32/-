@@ -86,12 +86,21 @@ link :: Monad m => ParsecT String u m Link
 link = choice [ try $ (:|:) <$> (link' <* rW "or") <*> link
               , link'
               ]
-    where link' = choice [ try $ (:&:) <$> (link'' <* rOp "&") <*> link
+       
+    where andLink = (rOp "&" <|> rW "and")
+          link' = choice [ try $ (:&:) <$> (link'' <* andLink) <*> link'
                          , link''
                          ]
-          link'' = choice [ try $ parens link
-                          , try $ Link  <$> linkName <*> linkDirection
-                          ,       Macro <$> macroName
+          link'' = choice [ try $ Cost           <$> T.squares linkGrammarDef link
+                          , try $ Optional       <$> T.braces linkGrammarDef link
+                          , try $ Link           <$> linkName
+                                                 <*> linkDirection
+                          , try $ Macro          <$> macroName
+                          , try $ MultiConnector <$> (rOp "@" *> link)
+                          , try $ parens link
+                          -- Empty links
+                          , try $ rOp "[" *> rOp "]" *> pure (Cost EmptyLink)
+                          , rOp "(" *> rOp ")" *> pure EmptyLink
                           ]
 
 macroName :: Monad m => ParsecT String u m MacroName
@@ -105,10 +114,9 @@ linkDirection = choice [ rOp "+" *> pure Plus
 nlpw :: Monad m => ParsecT String u m NLPWord
 nlpw = tok $ NLPWord <$> nword <*> nclass
     where nword = choice [ try $ T.stringLiteral linkGrammarDef
-                         , many1 $ oneOf "-=" <|> lower
+                         , many1 $ oneOf "-=_," <|> alphaNum
                          ]
-          nclass = choice [ try $ char '.' *> many1 (lower <|> digit <|> oneOf "=") -- TODO:
-                                       -- this never works
+          nclass = choice [ try $ char '.' *> many1 (lower <|> digit <|> oneOf "=")
                           , pure ""
                           ]
 

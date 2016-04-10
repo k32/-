@@ -1,5 +1,5 @@
 #!/bin/sh
-file="../link-grammar/data/ru/stem.dict"
+files="../link-grammar/data/ru/stem.dict"
 #file="./test.txt"
-dist/build/LinkGrammar/LinkGrammar -I/home/df/link-grammar/data/ $file #+RTS -xc
+dist/build/LinkGrammar/LinkGrammar -I/home/df/link-grammar/data/ $files #+RTS -xc
 

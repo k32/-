@@ -22,5 +22,5 @@ main = do
   case ast of
     Left x      -> putStrLn x
     Right rules -> do
-             mapM (putStrLn . pretty) rules
-             printf "Ok, imported %d rules\n" $ length rules
+             mapM (putStrLn . pretty) $ take 20 rules
+             printf "...\nOk, imported %d rules\n" $ length rules
