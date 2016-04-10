@@ -10,7 +10,6 @@ module LinkGrammar.AST
   -- )
       where
 
-import Control.Lens
 import Data.PrettyPrint    
 
 data LinkDirection = Plus

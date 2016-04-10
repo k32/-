@@ -11,10 +11,31 @@ import Data.Either
 import LinkGrammar.AST
 
 parseLink :: String -> Either String [Rule]
-parseLink = f . parse (T.whiteSpace linkGrammarDef *> linkGrammar <* eof) "undefined"
+parseLink s = f $ parse (T.whiteSpace linkGrammarDef *> linkGrammar <* eof) "undefined" s
     where f (Right a) = Right a
-          f (Left a)  = Left $ show a
+          f (Left a)  = Left $ printError s a
 
+printError :: String -> ParseError -> String
+printError s e =
+    let
+        line = sourceLine $ errorPos e
+        column = sourceColumn $ errorPos e
+        range = 5
+        sl = lines s
+        dropN = maximum [0, line - range]
+        splitN = minimum [range, line]
+        (b, a) = splitAt splitN $ drop dropN sl
+        moveSrcBy = 3
+        moveSrc = map (replicate moveSrcBy ' ' ++)
+    in
+      unlines $ concat [ ["\nError: " ++ show e]
+                       , ["\n..."]
+                       , moveSrc b
+                       , [(replicate (column - 1 + moveSrcBy) '~') ++ "^"]
+                       , moveSrc $ take range a
+                       , ["..."]
+                       ]
+    
 linkGrammarDef :: (Monad m) => T.GenTokenParser String u m
 linkGrammarDef = T.makeTokenParser $ T.LanguageDef {
                    T.commentStart = ""
@@ -26,14 +47,14 @@ linkGrammarDef = T.makeTokenParser $ T.LanguageDef {
                  , T.reservedNames = ["or"]
                  , T.reservedOpNames = ops
                  , T.caseSensitive = True
-                 , T.identStart = undefined
-                 , T.identLetter = undefined
+                 , T.identStart = anyToken
+                 , T.identLetter = anyToken
                  }
-    where ops = ["@", ":", ";", "+", "-"]
+    where ops = ["@", "+", "-"]
 
-rOp, rW :: Monad m => String -> ParsecT String u m ()
-rOp = T.reservedOp linkGrammarDef
-rW = T.reserved linkGrammarDef
+rOp, rW :: Monad m => String -> ParsecT String u m String
+rOp = T.symbol linkGrammarDef -- T.reservedOp linkGrammarDef
+rW = T.symbol linkGrammarDef -- T.reserved linkGrammarDef
 
 tok :: Monad m => ParsecT String u m a -> ParsecT String u m a
 tok = T.lexeme linkGrammarDef
@@ -45,8 +66,8 @@ linkGrammar :: Monad m => ParsecT String u  m [Rule]
 linkGrammar = many rule
 
 rule :: Monad m => ParsecT String u m Rule
-rule = Rule <$> (many1 lval <* rOp ":")
-            <*> (link       <* rOp ";")
+rule = Rule <$> (many lval <* tok (char ':'))
+            <*> (link      <* tok (char ';'))
 
 lval :: Monad m => ParsecT String u m LVal
 lval = choice [ try $ MacroDef <$> tok macroName
@@ -74,7 +95,7 @@ link = choice [ try $ (:|:) <$> (link' <* rW "or") <*> link
                           ]
 
 macroName :: Monad m => ParsecT String u m MacroName
-macroName = tok $ between (char '<') (char '>') $ many1 alphaNum
+macroName = tok $ between (char '<') (char '>') $ many1 (alphaNum <|> oneOf ",-.")
 
 linkDirection :: Monad m => ParsecT String u m LinkDirection
 linkDirection = choice [ rOp "+" *> pure Plus
@@ -84,9 +105,9 @@ linkDirection = choice [ rOp "+" *> pure Plus
 nlpw :: Monad m => ParsecT String u m NLPWord
 nlpw = tok $ NLPWord <$> nword <*> nclass
     where nword = choice [ try $ T.stringLiteral linkGrammarDef
-                         , many1 $ oneOf "-=." <|> lower
+                         , many1 $ oneOf "-=" <|> lower
                          ]
-          nclass = choice [ try $ char '.' *> many1 (lower <|> oneOf "=") -- TODO:
+          nclass = choice [ try $ char '.' *> many1 (lower <|> digit <|> oneOf "=") -- TODO:
                                        -- this never works
                           , pure ""
                           ]

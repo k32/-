@@ -17,10 +17,10 @@ main = do
       options' = options {boolopts = boolopts' {locations = False}}
   str <- concat <$> mapM readFile (CPP.infiles options')
   s <- CPP.runCpphs options' "" str
-  print options'
+  --print options'
   let ast = parseLink s
   case ast of
-    Left x      -> putStrLn $ "Error: " ++ x
+    Left x      -> putStrLn x
     Right rules -> do
-             mapM (putStrLn . show) rules
+             mapM (putStrLn . pretty) rules
              printf "Ok, imported %d rules\n" $ length rules
