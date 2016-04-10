@@ -5,8 +5,21 @@
 
 *.o
 
+*.dyn_o
+
+*.dyn_hi
+
+.cabal-sandbox
+
+cabal.sandbox.config
+
+*#*#
+
 LinkGrammar/Parser.hs
 
 LinkGrammar/Tokenize.hs
 
 Main
+
+dist
+Setup.hs

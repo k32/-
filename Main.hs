@@ -1,23 +1,26 @@
-import LinkGrammar.Parser
-import LinkGrammar.Tokenize
+import LinkGrammar.Parsec
 import LinkGrammar.AST
-import Language.Preprocessor.Cpphs
+import Language.Preprocessor.Cpphs as CPP
 import Control.Arrow
 import Control.Monad.IO.Class
 import Data.Either
 import System.Environment
 import Text.Printf
-
+import Data.PrettyPrint
+    
 main = do
   cliopts <- getArgs
-  options <- case parseOptions cliopts of
+  options <- case CPP.parseOptions cliopts of
     Right x -> return x
     Left y -> error y
-  str <- concat <$> mapM readFile (infiles options)
-  s <- runCpphs options "" str
-  let tokens = tokenize s
-      ast    = parse =<< (drop 3) <$> tokens
-  --print tokens
+  let boolopts' = boolopts options
+      options' = options {boolopts = boolopts' {locations = False}}
+  str <- concat <$> mapM readFile (CPP.infiles options')
+  s <- CPP.runCpphs options' "" str
+  print options'
+  let ast = parseLink s
   case ast of
-    Left x -> putStrLn $ "Error: " ++ x
-    Right rules -> printf "Ok, imported %d rules\n" $ length rules
+    Left x      -> putStrLn $ "Error: " ++ x
+    Right rules -> do
+             mapM (putStrLn . show) rules
+             printf "Ok, imported %d rules\n" $ length rules
