@@ -1,0 +1,16 @@
+* Parser
+** DONE [#B] Get rid of dictiopnary concatenation
+Concatenate rules instead
+** DONE [#C] Add parsing of numeric costs
+Not sure if really needed; we probably won't use costs for starters.
+
+Kind of done, but we just drop the numbers.
+
+** TODO [#B] Handle connectors in the lvals
+* Generator
+** TODO What data structure is needed to effectively lookup links
+ - Trie?
+** TODO [#A] Write a class for voretions
+** TODO [#B] Add some psihoza
+We should use other method to enrich the dictionary.
+

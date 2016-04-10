@@ -74,14 +74,6 @@ lval = choice [ try $ MacroDef <$> tok macroName
               , RuleDef  <$> tok nlpw
               ]
 
--- a ~> b = (rOp a, b)
-       
--- infixOps :: Monad m
---          => [[(ParsecT String u m x, a -> a -> a)]]
---          -> ParsecT String u m a
---          -> ParsecT String u m a
--- infixOps 
-
 link :: Monad m => ParsecT String u m Link
 link = choice [ try $ (:|:) <$> (link' <* rW "or") <*> link
               , link'
@@ -92,6 +84,7 @@ link = choice [ try $ (:|:) <$> (link' <* rW "or") <*> link
                          , link''
                          ]
           link'' = choice [ try $ Cost           <$> T.squares linkGrammarDef link
+                                                 <*  optional (T.float linkGrammarDef)
                           , try $ Optional       <$> T.braces linkGrammarDef link
                           , try $ Link           <$> linkName
                                                  <*> linkDirection
@@ -100,7 +93,7 @@ link = choice [ try $ (:|:) <$> (link' <* rW "or") <*> link
                           , try $ parens link
                           -- Empty links
                           , try $ rOp "[" *> rOp "]" *> pure (Cost EmptyLink)
-                          , rOp "(" *> rOp ")" *> pure EmptyLink
+                          , rOp "(" *> rOp ")"       *> pure EmptyLink
                           ]
 
 macroName :: Monad m => ParsecT String u m MacroName

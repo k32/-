@@ -1,12 +1,15 @@
-import LinkGrammar.Parsec
-import LinkGrammar.AST
-import Language.Preprocessor.Cpphs as CPP
 import Control.Arrow
+import Control.Applicative
 import Control.Monad.IO.Class
 import Data.Either
+import Data.PrettyPrint
+import Language.Preprocessor.Cpphs as CPP
+import LinkGrammar.AST
+import LinkGrammar.Parsec
 import System.Environment
 import Text.Printf
-import Data.PrettyPrint
+
+processFile o f = parseLink <$> (CPP.runCpphs o f =<< readFile f)
     
 main = do
   cliopts <- getArgs
@@ -15,10 +18,9 @@ main = do
     Left y -> error y
   let boolopts' = boolopts options
       options' = options {boolopts = boolopts' {locations = False}}
-  str <- concat <$> mapM readFile (CPP.infiles options')
-  s <- CPP.runCpphs options' "" str
+  files <- mapM (processFile options') $ CPP.infiles options'
   --print options'
-  let ast = parseLink s
+  let ast = foldr (liftA2 (++)) (pure []) files
   case ast of
     Left x      -> putStrLn x
     Right rules -> do
