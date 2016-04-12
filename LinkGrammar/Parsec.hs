@@ -80,21 +80,25 @@ link = (list LinkOr) <$> link' `sepBy` rW "or"
 
           link' = (list LinkAnd) <$> link'' `sepBy` andLink
 
-          link'' = choice [ try $ Cost             <$> T.squares linkGrammarDef link
-                                                   <*  optional (T.float linkGrammarDef)
-                          , try $ Optional         <$> T.braces linkGrammarDef link
-                          , try $ Link <$> (LinkID <$> linkName
+          link'' = choice [ try $ (single Cost) <$> T.squares linkGrammarDef link
+                                              <*  optional (T.float linkGrammarDef)
+                          , try $ (single Optional)  <$> T.braces linkGrammarDef link
+                          , try $ (none Link)    <$> (LinkID <$> linkName
                                                    <*> linkDirection)
-                          , try $ Macro            <$> macroName
-                          , try $ MultiConnector   <$> (rOp "@" *> link)
+                          , try $ (none Macro)         <$> macroName
+                          , try $ (single MultiConnector) <$> (rOp "@" *> link)
                           , try $ parens link
                           -- Empty links
-                          , try $ rOp "[" *> rOp "]" *> pure (Cost EmptyLink)
-                          , rOp "(" *> rOp ")"       *> pure EmptyLink
+                          , try $ rOp "[" *> rOp "]" *> pure (Node Cost [Node EmptyLink []])
+                          , rOp "(" *> rOp ")"       *> pure (Node EmptyLink [])
                           ]
-          
+
+          none c x = Node (c x) []
+
+          single c x = Node c [x]
+                   
           list _ [a] = a
-          list f  a  = f a
+          list f  a  = Node f a
 
 macroName :: Monad m => ParsecT String u m MacroName
 macroName = tok $ between (char '<') (char '>') $ many1 (alphaNum <|> oneOf ",-.")

@@ -1,17 +1,22 @@
 {-# LANGUAGE FlexibleInstances #-}
 module LinkGrammar.AST
-  -- (
-  --   Link(..)
-  -- , Rule(..)
-  -- , LinkName, MacroName
-  -- , NLPWord(..)
-  -- , LinkDirection(..)
-  -- , LVal(..)
-  -- )
-      where
+  (
+    Link(..)
+  , LinkID(..)
+  , NodeType(..)
+  , Rule(..)
+  , LinkName, MacroName
+  , NLPWord(..)
+  , LinkDirection(..)
+  , LVal(..)
+  , module Data.Tree
+  )
+  where
 
 import Data.PrettyPrint    
 import Data.List
+import Data.Tree
+import Data.Tree.Zipper
    
 data LinkDirection = Plus
                    | Minus
@@ -49,32 +54,43 @@ data LinkID = LinkID {
     , _linkDirection:: LinkDirection
     } deriving (Show, Eq, Read)
 
-data Link = Link LinkID
-          | Macro MacroName
-          | LinkOr [Link]
-          | LinkAnd [Link]
-          | Optional Link
-          | MultiConnector Link
-          | Cost Link
-          | EmptyLink
-          deriving (Eq, Show)
+instance PrettyPrint LinkID where
+    pretty (LinkID a b) =  a ++ pretty b
+            
+data NodeType = Optional
+              | Link LinkID
+              | LinkAnd
+              | LinkOr
+              | Macro MacroName
+              | MultiConnector
+              | Cost
+              | EmptyLink
+              deriving (Eq, Show)
+
+type Link = Tree NodeType
+
+type Link' t = TreePos t NodeType
 
 paren :: Link -> String
-paren (Link (LinkID a b)) = a ++ pretty b
-paren a@(Macro _)         = pretty a
-paren a@(Optional _)      = pretty a
-paren a@(Cost _)          = pretty a
-paren a                   = "(" ++ pretty a ++ ")"
+paren a@Node {rootLabel = r} =
+    case r of
+      Link _   -> pretty a
+      Macro _  -> pretty a
+      Optional -> pretty a
+      Cost     -> pretty a
+      _        -> "(" ++ pretty a ++ ")"
 
 instance PrettyPrint Link where
-    pretty (Link (LinkID a b)) = a ++ (pretty b)
-    pretty (Macro a)           = "<" ++ a ++  ">"
-    pretty (LinkOr a)          = intercalate " or " (map paren a)
-    pretty (LinkAnd a)         = intercalate " & " (map paren a)
-    pretty (Optional a)        = "{ " ++ pretty a ++ " }"
-    pretty (MultiConnector a)  = "@" ++ paren a
-    pretty (Cost a)            = "[ " ++ pretty a ++ " ]"
-    pretty EmptyLink           = "()"
+    pretty Node {rootLabel = r, subForest = l} = 
+        case r of
+          Link a         -> pretty a
+          Macro a        -> "<" ++ a ++  ">"
+          LinkOr         -> intercalate " or " (map paren l)
+          LinkAnd        -> intercalate " & " (map paren l)
+          Optional       -> "{ " ++ pretty (head l) ++ " }"
+          MultiConnector -> "@" ++ paren (head l)
+          Cost           -> "[ " ++ pretty (head l) ++ " ]"
+          EmptyLink      -> "()"
 
 data LVal = RuleDef NLPWord
           | MacroDef MacroName
