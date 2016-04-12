@@ -11,10 +11,11 @@ module LinkGrammar.AST
       where
 
 import Data.PrettyPrint    
-
+import Data.List
+   
 data LinkDirection = Plus
                    | Minus
-                   deriving (Eq, Show)
+                   deriving (Eq, Show, Read)
 
 instance PrettyPrint LinkDirection where
   pretty Plus  = "+"
@@ -43,9 +44,14 @@ instance PrettyPrint NLPWord where
 --   show (NLPWord a b) | null b = a
 --                      | True   = "\"" ++ a ++ "\"." ++ b
 
-data Link = Link LinkName LinkDirection
+data LinkID = LinkID {
+      _linkName :: LinkName
+    , _linkDirection:: LinkDirection
+    } deriving (Show, Eq, Read)
+
+data Link = Link LinkID
           | Macro MacroName
-          | Link :|: Link
+          | LinkOr [Link]
           | Link :&: Link
           | Optional Link
           | MultiConnector Link
@@ -54,21 +60,21 @@ data Link = Link LinkName LinkDirection
           deriving (Eq, Show)
 
 paren :: Link -> String
-paren (Link a b)     = a ++ pretty b
-paren a@(Macro _)    = pretty a
-paren a@(Optional _) = pretty a
-paren a@(Cost _)     = pretty a
-paren a              = "(" ++ pretty a ++ ")"
+paren (Link (LinkID a b)) = a ++ pretty b
+paren a@(Macro _)         = pretty a
+paren a@(Optional _)      = pretty a
+paren a@(Cost _)          = pretty a
+paren a                   = "(" ++ pretty a ++ ")"
 
 instance PrettyPrint Link where
-    pretty (Link a b)         = a ++ (pretty b)
-    pretty (Macro a)          = "<" ++ a ++  ">"
-    pretty (a :|: b)          = paren a ++ " or " ++ paren b
-    pretty (a :&: b)          = paren a ++ " & " ++ paren b
-    pretty (Optional a)       = "{ " ++ pretty a ++ " }"
-    pretty (MultiConnector a) = "@" ++ paren a
-    pretty (Cost a)           = "[ " ++ pretty a ++ " ]"
-    pretty EmptyLink          = "()"
+    pretty (Link (LinkID a b)) = a ++ (pretty b)
+    pretty (Macro a)           = "<" ++ a ++  ">"
+    pretty (LinkOr a)          = intercalate " or " (map paren a)
+    pretty (a :&: b)           = paren a ++ " & " ++ paren b
+    pretty (Optional a)        = "{ " ++ pretty a ++ " }"
+    pretty (MultiConnector a)  = "@" ++ paren a
+    pretty (Cost a)            = "[ " ++ pretty a ++ " ]"
+    pretty EmptyLink           = "()"
 
 data LVal = RuleDef NLPWord
           | MacroDef MacroName

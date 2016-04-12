@@ -6,6 +6,7 @@ import Data.PrettyPrint
 import Language.Preprocessor.Cpphs as CPP
 import LinkGrammar.AST
 import LinkGrammar.Parsec
+import LinkGrammar.Process
 import System.Environment
 import Text.Printf
 
@@ -19,10 +20,10 @@ main = do
   let boolopts' = boolopts options
       options' = options {boolopts = boolopts' {locations = False}}
   files <- mapM (processFile options') $ CPP.infiles options'
-  --print options'
   let ast = foldr (liftA2 (++)) (pure []) files
   case ast of
     Left x      -> putStrLn x
     Right rules -> do
+             let ruleset = normalize $ makeRuleset rules
              mapM (putStrLn . pretty) $ take 20 rules
              printf "...\nOk, imported %d rules\n" $ length rules
