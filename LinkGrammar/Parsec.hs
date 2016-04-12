@@ -75,11 +75,10 @@ lval = choice [ try $ MacroDef <$> tok macroName
               ]
 
 link :: Monad m => ParsecT String u m Link
-link = linkOr <$> link' `sepBy` rW "or"
+link = (list LinkOr) <$> link' `sepBy` rW "or"
     where andLink = (rOp "&" <|> rW "and")
-          link' = choice [ try $ (:&:) <$> (link'' <* andLink) <*> link'
-                         , link''
-                         ]
+
+          link' = (list LinkAnd) <$> link'' `sepBy` andLink
 
           link'' = choice [ try $ Cost             <$> T.squares linkGrammarDef link
                                                    <*  optional (T.float linkGrammarDef)
@@ -93,10 +92,10 @@ link = linkOr <$> link' `sepBy` rW "or"
                           , try $ rOp "[" *> rOp "]" *> pure (Cost EmptyLink)
                           , rOp "(" *> rOp ")"       *> pure EmptyLink
                           ]
+          
+          list _ [a] = a
+          list f  a  = f a
 
-          linkOr [a] = a
-          linkOr a   = LinkOr a
-                       
 macroName :: Monad m => ParsecT String u m MacroName
 macroName = tok $ between (char '<') (char '>') $ many1 (alphaNum <|> oneOf ",-.")
 

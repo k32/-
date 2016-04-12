@@ -52,7 +52,7 @@ data LinkID = LinkID {
 data Link = Link LinkID
           | Macro MacroName
           | LinkOr [Link]
-          | Link :&: Link
+          | LinkAnd [Link]
           | Optional Link
           | MultiConnector Link
           | Cost Link
@@ -70,7 +70,7 @@ instance PrettyPrint Link where
     pretty (Link (LinkID a b)) = a ++ (pretty b)
     pretty (Macro a)           = "<" ++ a ++  ">"
     pretty (LinkOr a)          = intercalate " or " (map paren a)
-    pretty (a :&: b)           = paren a ++ " & " ++ paren b
+    pretty (LinkAnd a)         = intercalate " & " (map paren a)
     pretty (Optional a)        = "{ " ++ pretty a ++ " }"
     pretty (MultiConnector a)  = "@" ++ paren a
     pretty (Cost a)            = "[ " ++ pretty a ++ " ]"

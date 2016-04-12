@@ -26,16 +26,18 @@ flattenOr :: Rule -> Rule
 flattenOr a = a
 
 (=*=) :: LinkID -> LinkID -> Bool
-[] =*= _  = True
-_  =*= [] = True
-(a:t1) =*= (b:t2)
-       | a == b             = t1 =*= t2
-       | any (=='*') [a, b] = True
+(LinkID x _) =*= (LinkID y _) = f x y
+    where
+     f [] _                   = True
+     f _  []                  = True
+     f (a:t1) (b:t2)
+         | a == b             = f t1 t2
+         | any (=='*') [a, b] = True
 
 containsID :: LinkID -> Link -> Bool
-containsID i (Link l)   = i =*= l
-containsID i (LinkOr l) = any (containsID i) l
-containsID i (a :&: b)  = containsID i a || containsID i b
+containsID i (Link l)           = i =*= l
+containsID i (LinkOr l)         = any (containsID i) l
+containsID i (LinkAnd l)        = any (containsID i) l
 containsID i (Optional l)       = containsID i l
 containsID i (MultiConnector l) = containsID i l
 containsID i (Cost l)           = containsID i l
