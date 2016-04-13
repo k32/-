@@ -9,17 +9,25 @@ module LinkGrammar.Process
 import LinkGrammar.AST 
 import Data.PrettyPrint
 import Data.Tree
+import qualified Data.Map as M
     
-data Ruleset = Ruleset [Rule]
-    
+data Ruleset = Ruleset {
+      _rules :: [Rule]
+    , _macros :: M.Map MacroName Link
+    }
+    deriving (Show, Eq, Read)
+
 instance PrettyPrint Ruleset where
     pretty (Ruleset l) = unlines $ map pretty l
              
 makeRuleset :: [Rule] -> Ruleset
-makeRuleset = Ruleset
+makeRuleset rules = Ruleset {
+                      _rules = rules
+                    , _macros = undefined
+                    }
     
 normalize :: Ruleset -> Ruleset
-normalize (Ruleset l) = Ruleset $ map flattenAssoc l
+normalize (Ruleset l) = Ruleset $ map (\(Rule a b) -> Rule a $ flattenAssoc b) l
 
 -- TODO : write me, since probability is affected by the definition order            
 flattenAssoc :: Link -> Link

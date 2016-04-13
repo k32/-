@@ -9,8 +9,9 @@ Kind of done, but we just drop the numbers.
 ** TODO [#B] Handle connectors in the lvals
 * Generator
 ** TODO What data structure is needed to effectively lookup links
- - Trie?
-** TODO [#A] Write a class for voretions
+ - Trie + zippers?
 ** TODO [#B] Add some psihoza
 We should use other method to enrich the dictionary.
-
+** TODO Ruleset
+*** TODO Macros
+*** TODO [#B] Reverse search
