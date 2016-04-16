@@ -9,7 +9,8 @@ import LinkGrammar.Parsec
 import LinkGrammar.Process
 import System.Environment
 import Text.Printf
-
+import Voretion.Kobenation
+    
 processFile o f = parseLink <$> (CPP.runCpphs o f =<< readFile f)
     
 main = do
@@ -24,7 +25,7 @@ main = do
   case ast of
     Left x      -> putStrLn x
     Right rules -> do
-             let ruleset = normalize $ makeRuleset rules
+             let ruleset = makeRuleset rules
              mapM (putStrLn . pretty) $ take 20 rules
              --mapM (putStrLn . drawTree . fmap show . _links) $ take 20 rules
              printf "...\nOk, imported %d rules\n" $ length rules

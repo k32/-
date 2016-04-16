@@ -80,16 +80,16 @@ link = (list LinkOr) <$> link' `sepBy` rW "or"
 
           link' = (list LinkAnd) <$> link'' `sepBy` andLink
 
-          link'' = choice [ try $ (single Cost) <$> T.squares linkGrammarDef link
-                                              <*  optional (T.float linkGrammarDef)
-                          , try $ (single Optional)  <$> T.braces linkGrammarDef link
-                          , try $ (none Link)    <$> (LinkID <$> linkName
-                                                   <*> linkDirection)
-                          , try $ (none Macro)         <$> macroName
+          link'' = choice [ try $ (single $ Cost 1)       <$> T.squares linkGrammarDef link
+                                                          <*  optional (T.float linkGrammarDef)
+                          , try $ (single Optional)       <$> T.braces linkGrammarDef link
+                          , try $ (none Link)             <$> (LinkID <$> linkName
+                                                          <*> linkDirection)
+                          , try $ (none Macro)            <$> macroName
                           , try $ (single MultiConnector) <$> (rOp "@" *> link)
                           , try $ parens link
                           -- Empty links
-                          , try $ rOp "[" *> rOp "]" *> pure (Node Cost [Node EmptyLink []])
+                          , try $ rOp "[" *> rOp "]" *> pure (Node (Cost 1) [Node EmptyLink []])
                           , rOp "(" *> rOp ")"       *> pure (Node EmptyLink [])
                           ]
 

@@ -2,6 +2,7 @@
 module LinkGrammar.AST
   (
     Link(..)
+  , Link'
   , LinkID(..)
   , NodeType(..)
   , Rule(..)
@@ -10,25 +11,24 @@ module LinkGrammar.AST
   , LinkDirection(..)
   , LVal(..)
   , module Data.Tree
+  , module Data.Tree.Zipper
   )
   where
 
-import Data.PrettyPrint    
+import Data.PrettyPrint
 import Data.List
 import Data.Tree
 import Data.Tree.Zipper
-   
+
 data LinkDirection = Plus
                    | Minus
-                   deriving (Eq, Show, Read)
+                   deriving (Eq, Show, Read, Ord)
 
 instance PrettyPrint LinkDirection where
   pretty Plus  = "+"
   pretty Minus = "-"
 
 type LinkName = String
--- instance ShowPrint LinkName where
---   show = show
 
 type MacroName = String
 
@@ -40,30 +40,46 @@ data NLPWord =
     }
     deriving (Eq, Read, Show)
 
+
 instance PrettyPrint NLPWord where
     pretty NLPWord {_nlpword = w, _nlpclass = c}
         | null c = w
         | True = w ++ ".[" ++ c ++ "]"
-    
--- instance Show NLPWord where
---   show (NLPWord a b) | null b = a
---                      | True   = "\"" ++ a ++ "\"." ++ b
 
 data LinkID = LinkID {
       _linkName :: LinkName
-    , _linkDirection:: LinkDirection
+    , _linkDirection :: LinkDirection
     } deriving (Show, Eq, Read)
+
+instance Ord LinkID where
+    compare (LinkID k i) (LinkID l j) =
+        case compare i j of
+          EQ ->
+              go k l where
+                    go [] _ = EQ
+                    go _ [] = EQ
+                    go (a:t1) (b:t2)
+                        | a == b || any (=='*') [a,b] = go t1 t2
+                        | True                        = compare a b
+          a ->
+              a
+
+exactCompare :: LinkID -> LinkID -> Ordering
+exactCompare (LinkID k i) (LinkID l j) =
+    case compare i j of
+      EQ -> compare k l
+      a  -> a
 
 instance PrettyPrint LinkID where
     pretty (LinkID a b) =  a ++ pretty b
-            
+
 data NodeType = Optional
               | Link LinkID
               | LinkAnd
               | LinkOr
               | Macro MacroName
               | MultiConnector
-              | Cost
+              | Cost Float
               | EmptyLink
               deriving (Eq, Show)
 
@@ -77,11 +93,11 @@ paren a@Node {rootLabel = r} =
       Link _   -> pretty a
       Macro _  -> pretty a
       Optional -> pretty a
-      Cost     -> pretty a
+      Cost _   -> pretty a
       _        -> "(" ++ pretty a ++ ")"
 
 instance PrettyPrint Link where
-    pretty Node {rootLabel = r, subForest = l} = 
+    pretty Node {rootLabel = r, subForest = l} =
         case r of
           Link a         -> pretty a
           Macro a        -> "<" ++ a ++  ">"
@@ -89,11 +105,13 @@ instance PrettyPrint Link where
           LinkAnd        -> intercalate " & " (map paren l)
           Optional       -> "{ " ++ pretty (head l) ++ " }"
           MultiConnector -> "@" ++ paren (head l)
-          Cost           -> "[ " ++ pretty (head l) ++ " ]"
+          Cost x
+              | x /= 1   -> "[ " ++ pretty (head l) ++ " ]" ++ show x ++ " "
+              | True     -> "[ " ++ pretty (head l) ++ " ]"
           EmptyLink      -> "()"
 
-data LVal = RuleDef NLPWord
-          | MacroDef MacroName
+data LVal = RuleDef { _ruleDef :: NLPWord }
+          | MacroDef { _macroName :: MacroName }
           deriving (Eq, Show)
 
 instance PrettyPrint LVal where

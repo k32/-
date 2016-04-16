@@ -1,7 +1,8 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Voretion.Kobenation
     (
       Kob(..)
-    , voretion
+    , tvoretion
     ) where
 
 import Control.Monad.Random
@@ -45,19 +46,10 @@ data State = State {
 
 -- Tvoretions (topological voretions)
 -- Here we resolve links
-tvoretion :: (MonadRandom m, MonadReader State m) => Ruleset -> Maybe LinkID -> Link -> m Kob
-tvoretion ruleset uplink = undefined  . kobenate uplink . resolveMacros ruleset
+tvoretion :: (MonadRandom m, MonadReader State m) => Ruleset -> Link' Full -> m Kob
+tvoretion ruleset = undefined
 
 -- Here we resolve ORs, multiconnectors and optionals
 -- Rule's rval becomes flat after that
-kobenate :: (MonadRandomm, MonadReader State m) => Link -> m ([LinkID], [LinkID])
-kobenate link =
-    case link of
-         Link l
-             | _linkDirection l == Down -> return ([l], [])
-             | True                     -> return ([], [l])
-         LinkOr l -> 
-             let l' = selectUp l
-             n <- getRandomR (0, length l' - 1)
-             kobenate (l' !! n)
-
+kobenate :: (MonadRandom m, MonadReader State m) => Link' Full -> m ([LinkName], [LinkName])
+kobenate = undefined
