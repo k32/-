@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns, FlexibleContexts #-}
 module LinkGrammar.Process
     (
       makeRuleset
@@ -19,8 +19,8 @@ import qualified Data.Vector as V
 type RuleIndex = [(Int, [Int])]
     
 data Ruleset = Ruleset {
-      _rules :: V.Vector Rule''
-    , _index :: M.Map LinkName RuleIndex
+      _rules :: V.Vector Rule'
+    , _index :: M.Map LinkID RuleIndex
     } -- deriving (Show)
 
 data Rule' = Rule' {
@@ -28,10 +28,10 @@ data Rule' = Rule' {
     , _links' :: Link
     } deriving (Show, Eq)
 
-data Rule'' = Rule'' {
-      _lval'' :: [NLPWord]
-    , _link'' :: Link' Full
-    } -- deriving (Show)
+-- data Rule'' = Rule'' {
+--       _lval'' :: [NLPWord]
+--     , _link'' :: Link' Full
+--     } -- deriving (Show)
 
 makeRuleset :: [Rule] -> Ruleset
 makeRuleset rr =
@@ -41,17 +41,32 @@ makeRuleset rr =
         rules' = V.fromList $ map (assocFlatten . costPropagate . deMacrify macros [])
                  rules
 
-        index0 = execState $ V.imapM_ makeIndex rules'
+        index0 = (`execState` M.empty) $ V.imapM_ makeIndex rules'
 
-        makeIndex idx (Rule'' _ y) = (`runReaderT` []) $ go idx   
+        makeIndex idx (Rule' _ y) = (`runReaderT` []) $ go idx y
 
-        -- unZip (Rule' a b) = Rule'' a $ fromTree b
+        go :: (MonadReader [Int] m, MonadState (M.Map Hack RuleIndex) m) =>
+              Int -> Link -> m ()
+        go idx Node {subForest = u, rootLabel = p}
+            = case p of
+                Link e -> do
+                       path <- ask
+                       modify $ M.insertWith (++) (Hack e) [(idx, reverse path)]
+                _ ->
+                  mapM_ (\(s, n) -> local (n:) $ go idx s) $ zip u [0..]
+        
     in
       Ruleset {
           _rules = rules'
           -- !!!!! HACK HACK HACK !!!!!
-        , _index = M.fromDistinctAscList undefined
+        , _index = M.fromDistinctAscList $ map (\(a,b) -> (unHack a, b)) $ M.toList index0
         }
+
+data Hack = Hack { unHack :: LinkID }
+    deriving (Eq)
+
+instance Ord Hack where
+    compare (Hack a) (Hack b) = exactCompare a b
 
 (=*=) :: LinkID -> LinkID -> Bool
 (LinkID x _) =*= (LinkID y _) = f x y
@@ -86,7 +101,8 @@ deMacrify m l (Rule' ł r) =
         f l₀ (Node α β) = case α of
                             Macro n -> do
                                 if n `elem` l₀
-                                   then error $ "deMacrify: Loop detected, see macro " ++ n
+                                   then error $ "deMacrify: Loop detected, see macro " ++ n ++
+                                                " in rule " ++ show ł
                                    else return ()
                                 modify (n:) -- TODO: duplicates
                                 return $ m M.! n

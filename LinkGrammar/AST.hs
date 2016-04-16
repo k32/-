@@ -10,6 +10,7 @@ module LinkGrammar.AST
   , NLPWord(..)
   , LinkDirection(..)
   , LVal(..)
+  , exactCompare
   , module Data.Tree
   , module Data.Tree.Zipper
   )
