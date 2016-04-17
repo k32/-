@@ -39,6 +39,7 @@ executable LinkGrammar
                      , rosezipper
                      , mtl >= 2.2 && < 2.3
                      , vector >= 0.11 && <0.12
+                     , binary >= 0.7 && <0.8
   
   -- Directories containing source files.
   -- hs-source-dirs:      
