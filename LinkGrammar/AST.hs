@@ -2,7 +2,7 @@
 module LinkGrammar.AST
   (
     Link(..)
-  , Link'
+ -- , Link'
   , LinkID(..)
   , NodeType(..)
   , Rule(..)
@@ -95,7 +95,7 @@ instance Binary NodeType
 
 type Link = Tree NodeType
 
-type Link' t = TreePos t NodeType
+-- type Link' t = TreePos t NodeType
 
 paren :: Link -> String
 paren a@Node {rootLabel = r} =

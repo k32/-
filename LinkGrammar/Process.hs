@@ -3,6 +3,8 @@ module LinkGrammar.Process
     (
       makeRuleset
     , Ruleset(..)
+    , saveRuleset
+    , loadRuleset
     ) where
 
 import LinkGrammar.AST
@@ -13,7 +15,7 @@ import Data.Traversable
 import Control.Arrow
 import Control.Monad.State
 import Control.Monad.Reader    
-import qualified Data.Map as M
+import qualified Data.Map.Strict as M
 import qualified Data.Vector as V
 import Data.Binary
 import GHC.Generics (Generic)
@@ -27,7 +29,7 @@ data Ruleset = Ruleset {
 
 data Ruleset' = Ruleset' {
       _rules' :: [Rule']
-    , _index' :: M.Map (Hack LinkID) RuleIndex
+    , _index' :: [(Hack, RuleIndex)]
     } deriving (Generic)
              
 instance Binary Ruleset'
@@ -73,8 +75,28 @@ makeRuleset rr =
         , _index = M.fromDistinctAscList $ map (\(a,b) -> (unHack a, b)) $ M.toList index0
         }     
 
+saveRuleset :: Ruleset -> FilePath -> IO ()
+saveRuleset r fileName =
+    let
+        r' = Ruleset' {
+               _rules' = V.toList $ _rules r
+             , _index' = M.toList $ M.mapKeys Hack $ _index r
+             }
+    in encodeFile fileName r'
+
+loadRuleset :: FilePath -> IO Ruleset
+loadRuleset filePath = do
+  r <- decodeFile filePath
+  return Ruleset {
+             _rules = V.fromList $ _rules' r
+           -- HACK!!!!
+           , _index = M.fromDistinctAscList $ map (\(a, b) -> (unHack a, b)) $ _index' r
+           }
+
 data Hack = Hack { unHack :: LinkID }
-    deriving (Eq)
+    deriving (Eq, Generic)
+
+instance Binary Hack
 
 instance Ord Hack where
     compare (Hack a) (Hack b) = exactCompare a b
