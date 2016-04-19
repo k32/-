@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns, FlexibleContexts #-}
+{-# LANGUAGE BangPatterns, FlexibleContexts, DeriveGeneric #-}
 module LinkGrammar.Process
     (
       makeRuleset
@@ -22,6 +22,11 @@ data Ruleset = Ruleset {
       _rules :: V.Vector Rule'
     , _index :: M.Map LinkID RuleIndex
     } -- deriving (Show)
+
+data Ruleset' = Ruleset' {
+      _rules' :: [Rule']
+    , _index' :: M.Map (Hack LinkID) RuleIndex
+    } deriving (Generic)
 
 data Rule' = Rule' {
       _lval' :: [NLPWord]
@@ -60,7 +65,7 @@ makeRuleset rr =
           _rules = rules'
           -- !!!!! HACK HACK HACK !!!!!
         , _index = M.fromDistinctAscList $ map (\(a,b) -> (unHack a, b)) $ M.toList index0
-        }
+        }     
 
 data Hack = Hack { unHack :: LinkID }
     deriving (Eq)
