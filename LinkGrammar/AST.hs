@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, DeriveGeneric #-}
 module LinkGrammar.AST
   (
     Link(..)
@@ -20,10 +20,14 @@ import Data.PrettyPrint
 import Data.List
 import Data.Tree
 import Data.Tree.Zipper
+import Data.Binary
+import GHC.Generics (Generic)
 
 data LinkDirection = Plus
                    | Minus
-                   deriving (Eq, Show, Read, Ord)
+                   deriving (Eq, Show, Generic, Ord)
+
+instance Binary LinkDirection                            
 
 instance PrettyPrint LinkDirection where
   pretty Plus  = "+"
@@ -39,8 +43,9 @@ data NLPWord =
       _nlpword
     , _nlpclass :: String
     }
-    deriving (Eq, Read, Show)
+    deriving (Eq, Generic, Show)
 
+instance Binary NLPWord
 
 instance PrettyPrint NLPWord where
     pretty NLPWord {_nlpword = w, _nlpclass = c}
@@ -50,7 +55,9 @@ instance PrettyPrint NLPWord where
 data LinkID = LinkID {
       _linkName :: LinkName
     , _linkDirection :: LinkDirection
-    } deriving (Show, Eq, Read)
+    } deriving (Show, Eq, Generic)
+
+instance Binary LinkID
 
 instance Ord LinkID where
     compare (LinkID k i) (LinkID l j) =
@@ -82,7 +89,9 @@ data NodeType = Optional
               | MultiConnector
               | Cost Float
               | EmptyLink
-              deriving (Eq, Show)
+              deriving (Eq, Show, Generic)
+
+instance Binary NodeType
 
 type Link = Tree NodeType
 
@@ -113,7 +122,7 @@ instance PrettyPrint Link where
 
 data LVal = RuleDef { _ruleDef :: NLPWord }
           | MacroDef { _macroName :: MacroName }
-          deriving (Eq, Show)
+          deriving (Eq, Show, Generic)
 
 instance PrettyPrint LVal where
   pretty (RuleDef a) = pretty a

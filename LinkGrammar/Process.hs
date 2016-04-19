@@ -15,23 +15,29 @@ import Control.Monad.State
 import Control.Monad.Reader    
 import qualified Data.Map as M
 import qualified Data.Vector as V
+import Data.Binary
+import GHC.Generics (Generic)
 
 type RuleIndex = [(Int, [Int])]
-    
+
 data Ruleset = Ruleset {
       _rules :: V.Vector Rule'
     , _index :: M.Map LinkID RuleIndex
-    } -- deriving (Show)
+    }  deriving (Show)
 
 data Ruleset' = Ruleset' {
       _rules' :: [Rule']
     , _index' :: M.Map (Hack LinkID) RuleIndex
     } deriving (Generic)
-
+             
+instance Binary Ruleset'
+    
 data Rule' = Rule' {
       _lval' :: [NLPWord]
     , _links' :: Link
-    } deriving (Show, Eq)
+    } deriving (Show, Eq, Generic)
+
+instance Binary Rule'
 
 -- data Rule'' = Rule'' {
 --       _lval'' :: [NLPWord]

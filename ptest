@@ -1,5 +1,6 @@
 #!/bin/sh
 files="../link-grammar/data/ru/4.0.dict"
 #file="./test.txt"
-dist/build/LinkGrammar/LinkGrammar -I/home/df/link-grammar/data $files #+RTS -xc
+
+dist/build/LinkGrammar/LinkGrammar -I/home/df/link-grammar/data -I../link-grammar/data $files #+RTS -xc
 
