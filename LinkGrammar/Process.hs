@@ -152,7 +152,32 @@ deMacrify m l (Rule' ł r) =
          else deMacrify m l₁ (Rule' ł r')
 
 costPropagate :: Rule' -> Rule'
-costPropagate = id
+costPropagate (Rule' lval links) = Rule' lval $ go 0 links
+  where go n node@Node{subForest=s, rootLabel=l} =
+            case l of
+              Cost x ->
+                  go (n+x) $ head s
+              a@(Link _) ->
+                  Node {
+                     rootLabel = Cost n
+                   , subForest = [node]
+                   }
+              a ->
+                  Node {
+                     rootLabel = a
+                   , subForest = map (go n) s
+                   }
 
+{-
+a or (b or c) or d -> a or b or c or d
+
+Note: we don't flatten &, because it's not needed
+-}               
 assocFlatten :: Rule' -> Rule'
-assocFlatten = id
+assocFlatten = id -- (Rule' lval links) =  Rule' lval $ go links
+  -- where go node@Node{subForest=s, rootLabel=l} =
+  --           case l of
+  --             LinkOr ->
+  --                 let
+
+  --                     s' = foldl f
