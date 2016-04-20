@@ -3,6 +3,7 @@ module LinkGrammar.Process
     (
       makeRuleset
     , Ruleset(..)
+    , Rule'(..)
     , saveRuleset
     , loadRuleset
     ) where
@@ -35,8 +36,8 @@ data Ruleset' = Ruleset' {
 instance Binary Ruleset'
     
 data Rule' = Rule' {
-      _lval' :: [NLPWord]
-    , _links' :: Link
+      _lval' :: ![NLPWord]
+    , _links' :: !Link
     } deriving (Show, Eq, Generic)
 
 instance Binary Rule'
@@ -88,12 +89,12 @@ loadRuleset :: FilePath -> IO Ruleset
 loadRuleset filePath = do
   r <- decodeFile filePath
   return Ruleset {
-             _rules = V.fromList $ _rules' r
+             _rules = V.fromList $! _rules' r
            -- HACK!!!!
-           , _index = M.fromDistinctAscList $ map (\(a, b) -> (unHack a, b)) $ _index' r
+           , _index = M.fromDistinctAscList $! map (\(a, b) -> (unHack a, b)) $ _index' r
            }
 
-data Hack = Hack { unHack :: LinkID }
+data Hack = Hack { unHack :: !LinkID }
     deriving (Eq, Generic)
 
 instance Binary Hack
