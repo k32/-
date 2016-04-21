@@ -86,7 +86,7 @@ link = (list LinkOr) <$> link' `sepBy` rW "or"
                           , try $ (none Link)             <$> (LinkID <$> linkName
                                                           <*> linkDirection)
                           , try $ (none Macro)            <$> macroName
-                          , try $ (single MultiConnector) <$> (rOp "@" *> link)
+                          , try $ (single MultiConnector) <$> (rOp "@" *> link'')
                           , try $ parens link
                           -- Empty links
                           , try $ rOp "[" *> rOp "]" *> pure (Node (Cost 1) [Node EmptyLink []])
