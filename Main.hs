@@ -18,6 +18,7 @@ main = do
     Right x -> return x
     Left y -> error y
   let boolopts' = boolopts options
+-- TODO: specify output file
       options' = options {boolopts = boolopts' {locations = False}}
   files <- mapM (processFile options') $ CPP.infiles options'
   let ast = foldr (liftA2 (++)) (pure []) files

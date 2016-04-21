@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, BangPatterns #-}
 module Voretion.Kobenation
     (
       Kob(..)
@@ -7,7 +7,6 @@ module Voretion.Kobenation
     , State(..)
     ) where
 
-import Prelude hiding (foldl1)
 import Control.Monad.Random
 import Control.Monad.Reader
 import LinkGrammar.AST
@@ -15,7 +14,7 @@ import LinkGrammar.Process
 import Control.Arrow
 import qualified Data.Map as M
 import qualified Data.Vector as V
-import Data.Foldable
+import Data.List
 import Debug.Trace
 
 -- Kobenation    
@@ -52,7 +51,7 @@ data State = State {
     }
 
 humanize :: Kob -> String
-humanize (Kob a (d, u)) = (d >>= humanize) ++ a ++ (u >>= humanize)
+humanize (Kob a (d, u)) = unwords [(unwords $ map humanize d), a, (unwords $ map humanize u)]
 
 doVoretion :: Ruleset -> State -> String -> IO Kob
 doVoretion ruleset cfg vseed = evalRandIO $ (flip runReaderT) cfg $ do
@@ -72,7 +71,7 @@ tvoretion ruleset =  go []
       (δ₀, υ₀) <- kobenate g ł -- TODO: not enough psihoza... make it pointfree
       δ₁ <- mapM (f Minus) δ₀
       υ₁ <- mapM (f Plus) υ₀
-      return $ Kob τ (δ₁, υ₁)
+      return $! Kob τ (δ₁, υ₁)
              
     f :: (MonadRandom m, MonadReader State m) => LinkDirection -> LinkName -> m Kob
     f ld ln = do
@@ -88,7 +87,7 @@ tvoretion ruleset =  go []
 -- Here we resolve ORs, multiconnectors and optionals
 -- Rule's rval becomes flat after that, only &s and linkIDs stand
 kobenate :: (MonadRandom m, MonadReader State m) => [Int] -> Link -> m ([LinkName], [LinkName])
-kobenate idx (Node t c) =
+kobenate !idx (Node !t !c) =
     case t of
       Optional ->
           case idx of
@@ -112,17 +111,20 @@ kobenate idx (Node t c) =
               kobenate [] $ c !! i
             (α:idx') ->
               kobenate idx' $ c !! α
-      Link (LinkID n d) ->
-          case d of
-            Plus -> return ([], [n])
-            Minus -> return ([n], [])
+      Link (LinkID n d)
+          | null idx ->
+              case d of
+                Plus -> return ([], [n])
+                Minus -> return ([n], [])
+          | True ->
+              return ([], [])
       MultiConnector ->
           (concat *** concat . reverse) <$> unzip <$> (vorecMul $ kobenate (drop 1 idx) $ head c)
       Cost _ -> 
           kobenate (drop 1 idx) $ head c
 
 vorecOpt :: (MonadRandom m, MonadReader State m) => a -> m a -> m a
-vorecOpt d a = do
+vorecOpt !d !a = do
   x <- getRandom
   t <- asks _threashold
   if x < t
@@ -131,10 +133,10 @@ vorecOpt d a = do
       
 
 vorecMul :: (MonadRandom m, MonadReader State m) => m a -> m [a]
-vorecMul a = do
-  --x <- getRandom
+vorecMul !a = do
+  x <- getRandom
   t <- asks _threashold
-  if False -- x < t
+  if x < t
     then trace ("Mul,t=" ++ show t) $ local (\s@State{_threashold=t₀, _decayₘ=δₘ}->s{_threashold=t₀/δₘ}) $ 
                ((:) <$> a <*> vorecMul a)
     else return []

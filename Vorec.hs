@@ -1,11 +1,13 @@
 import LinkGrammar.AST
 import LinkGrammar.Process
 import System.IO
+import System.Environment
 import Voretion.Kobenation
 
 main = do
+  ruleFile <- head <$> getArgs
   hPutStrLn stderr "Loading ruleset..."
-  ruleset <- loadRuleset "./ruleset.dat"
+  ruleset <- loadRuleset ruleFile
   hPutStrLn stderr "Done."
   let cfg = State {
               _threashold = 0.001
@@ -13,4 +15,4 @@ main = do
             , _decayₘ= 60
             }
   kob <- doVoretion ruleset cfg undefined
-  putStrLn $ humanize kob
+  putStrLn $ show kob
