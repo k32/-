@@ -55,11 +55,11 @@ humanize (Kob a (d, u)) = unwords [(unwords $ map humanize d), a, (unwords $ map
 
 doVoretion :: Ruleset -> State -> String -> IO Kob
 doVoretion ruleset cfg vseed = evalRandIO $ (flip runReaderT) cfg $ do
-                                 i <- getRandomR (0, V.length $ _rules ruleset)
+                                 i <- getRandomR (0, (V.length $ _rules ruleset) - 1)
                                  let (Rule' lval rule) = (_rules ruleset) V.! i
                                  j <- getRandomR (0, length lval - 1)
                                  tvoretion ruleset $ TL (_nlpword $ lval !! j) rule
-  where vseed' = undefined-- TODO: get it right
+  where vseed' = undefined -- TODO: get it right
         nrules = V.length $ _rules ruleset 
 
 -- Tvoretions (topological voretions)
@@ -69,20 +69,22 @@ tvoretion ruleset =  go []
   where
     go g (TL τ ł) = do
       (δ₀, υ₀) <- kobenate g ł -- TODO: not enough psihoza... make it pointfree
-      δ₁ <- mapM (f Minus) δ₀
-      υ₁ <- mapM (f Plus) υ₀
+      δ₁ <- mapM (f Plus) δ₀
+      υ₁ <- mapM (f Minus) υ₀
       return $! Kob τ (δ₁, υ₁)
              
     f :: (MonadRandom m, MonadReader State m) => LinkDirection -> LinkName -> m Kob
     f ld ln = do
-      let rr = (_index ruleset) M.! (LinkID ln ld)
+      let rr = trace ("!! Looking up " ++ show (LinkID ln ld)) $ (_index ruleset) M.! (LinkID ln ld)
           n  = length rr
       i <- getRandomR (0, n-1)
       let (idx1, idx2) = rr !! i
           (Rule' lval link) = (_rules ruleset) V.! idx1
           nlval = length lval
       j <- getRandomR (0, nlval-1)
-      go idx2 $ TL (_nlpword $ lval !! j) link
+      let t''' = TL (_nlpword $ lval !! j) link
+      --trace ("!!!!!!\n" ++ show t'''  ++ "\n!!!!!\n") $ return ()
+      go idx2 t'''
 
 -- Here we resolve ORs, multiconnectors and optionals
 -- Rule's rval becomes flat after that, only &s and linkIDs stand
@@ -92,10 +94,11 @@ kobenate !idx (Node !t !c) =
       Optional ->
           case idx of
             (_:idx') ->
-                vorecOpt ([], []) $ kobenate idx' $ head c
+                kobenate idx' $ head c
             [] ->
-                kobenate [] $ head c
+                vorecOpt ([], []) $ kobenate [] $ head c
       LinkAnd -> do
+             trace ("!! i'm &, idx=" ++ show idx) (return [])
              let ρ (x, φ) = case idx of
                               (α:idx')
                                   | φ == α -> (idx', x)
@@ -111,7 +114,7 @@ kobenate !idx (Node !t !c) =
               kobenate [] $ c !! i
             (α:idx') ->
               kobenate idx' $ c !! α
-      Link (LinkID n d)
+      Link _ (LinkID n d)
           | null idx ->
               case d of
                 Plus -> return ([], [n])
@@ -120,7 +123,7 @@ kobenate !idx (Node !t !c) =
               return ([], [])
       MultiConnector ->
           (concat *** concat . reverse) <$> unzip <$> (vorecMul $ kobenate (drop 1 idx) $ head c)
-      Cost _ -> 
+      Cost _ ->
           kobenate (drop 1 idx) $ head c
 
 vorecOpt :: (MonadRandom m, MonadReader State m) => a -> m a -> m a

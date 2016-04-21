@@ -63,9 +63,9 @@ makeRuleset rr =
               Int -> Link -> m ()
         go idx Node {subForest = u, rootLabel = p}
             = case p of
-                Link e -> do
+                Link _ e -> do
                        path <- ask
-                       modify $ M.insertWith (++) (Hack e) [(idx, reverse path)]
+                       modify $ M.insertWith (++) (Hack e) [(idx, reverse $ idx:path)]
                 _ ->
                   mapM_ (\(s, n) -> local (n:) $ go idx s) $ zip u [0..]
         
@@ -158,11 +158,8 @@ costPropagate (Rule' lval links) = Rule' lval $ go 0 links
             case l of
               Cost x ->
                   go (n+x) $ head s
-              a@(Link _) ->
-                  Node {
-                     rootLabel = Cost n
-                   , subForest = [node]
-                   }
+              (Link cost linkID) ->
+                  Node {rootLabel=Link (cost + n) linkID, subForest=[]}
               a ->
                   Node {
                      rootLabel = a

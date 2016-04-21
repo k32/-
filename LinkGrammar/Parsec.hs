@@ -83,7 +83,7 @@ link = (list LinkOr) <$> link' `sepBy` rW "or"
           link'' = choice [ try $ (single $ Cost 1)       <$> T.squares linkGrammarDef link
                                                           <*  optional (T.float linkGrammarDef)
                           , try $ (single Optional)       <$> T.braces linkGrammarDef link
-                          , try $ (none Link)             <$> (LinkID <$> linkName
+                          , try $ (none (Link 0))         <$> (LinkID <$> linkName
                                                           <*> linkDirection)
                           , try $ (none Macro)            <$> macroName
                           , try $ (single MultiConnector) <$> (rOp "@" *> link'')

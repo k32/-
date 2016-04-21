@@ -33,6 +33,9 @@ instance PrettyPrint LinkDirection where
   pretty Plus  = "+"
   pretty Minus = "-"
 
+instance Show LinkID where
+    show (LinkID a b) = a ++ (pretty b)
+
 type LinkName = String
 
 type MacroName = String
@@ -55,7 +58,7 @@ instance PrettyPrint NLPWord where
 data LinkID = LinkID {
       _linkName :: LinkName
     , _linkDirection :: LinkDirection
-    } deriving (Show, Eq, Generic)
+    } deriving (Eq, Generic)
 
 instance Binary LinkID
 
@@ -79,10 +82,11 @@ exactCompare (LinkID k i) (LinkID l j) =
       a  -> a
 
 instance PrettyPrint LinkID where
-    pretty (LinkID a b) =  a ++ pretty b
+    pretty (LinkID a Plus) =  a ++ "+"
+    pretty (LinkID a Minus) = a ++ "-"
 
 data NodeType = Optional
-              | Link LinkID
+              | Link Float LinkID
               | LinkAnd
               | LinkOr
               | Macro MacroName
@@ -100,7 +104,7 @@ type Link = Tree NodeType
 paren :: Link -> String
 paren a@Node {rootLabel = r} =
     case r of
-      Link _   -> pretty a
+      Link _ _ -> pretty a
       Macro _  -> pretty a
       Optional -> pretty a
       Cost _   -> pretty a
@@ -109,7 +113,7 @@ paren a@Node {rootLabel = r} =
 instance PrettyPrint Link where
     pretty Node {rootLabel = r, subForest = l} =
         case r of
-          Link a         -> pretty a
+          Link _ a       -> pretty a
           Macro a        -> "<" ++ a ++  ">"
           LinkOr         -> intercalate " or " (map paren l)
           LinkAnd        -> intercalate " & " (map paren l)
