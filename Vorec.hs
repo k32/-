@@ -3,6 +3,8 @@ import LinkGrammar.Process
 import System.IO
 import System.Environment
 import Voretion.Kobenation
+import Data.PrettyPrint
+import Control.Monad
 
 main = do
   ruleFile <- head <$> getArgs
@@ -15,6 +17,8 @@ main = do
             , _decayₒ = 10
             , _decayₘ= 6
             }
-  kob <- doVoretion ruleset cfg undefined
-  print kob
-  putStrLn $ humanize kob
+  replicateM 100 $ do
+         kob <- doVoretion ruleset cfg undefined
+  -- putStrLn $ pretty kob
+         putStrLn $ humanize kob
+  return ()

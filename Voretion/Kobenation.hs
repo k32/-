@@ -16,6 +16,7 @@ import qualified Data.Map as M
 import qualified Data.Vector as V
 import Data.List
 import Debug.Trace
+import Data.PrettyPrint
 
 -- Kobenation    
 data Kob = Kob
@@ -37,13 +38,12 @@ Example kobenation:
 It's represented as:
 Kob "cat" [Kob "A" [] [], Kob "black" [] []] [Kob "runs"]
 
-It's seed-agnostic, for example:
-
-Kob "A" [] [Kob "cat" [Kob "black" [] []] [Kob "runs" [] []]]
-
 represents the same topology.
 -}
 
+instance PrettyPrint Kob where
+    pretty = drawTree . go ""
+        where go x (Kob a (d, u)) = Node (a ++ x) $ map (go "-") d ++ map (go "+") u
 data State = State {
       _threashold :: Float
     , _decayₒ
@@ -98,14 +98,13 @@ kobenate !idx (Node !t !c) =
             [] ->
                 vorecOpt ([], []) $ kobenate [] $ head c
       LinkAnd -> do
-             trace ("!! i'm &, idx=" ++ show idx) (return [])
              let ρ (x, φ) = case idx of
                               (α:idx')
                                   | φ == α -> (idx', x)
                               _ ->
                                   ([], x)
                  l' = map ρ (zip c [0..])
-             (concat *** concat . reverse) <$> unzip <$> mapM (uncurry kobenate) l'
+             (concat *** concat) <$> unzip <$> mapM (uncurry kobenate) l'
       LinkOr ->
           case idx of
             [] -> do
@@ -122,7 +121,7 @@ kobenate !idx (Node !t !c) =
           | True ->
               return ([], [])
       MultiConnector ->
-          (concat *** concat . reverse) <$> unzip <$> (vorecMul $ kobenate (drop 1 idx) $ head c)
+          (concat *** concat) <$> unzip <$> (vorecMul $ kobenate (drop 1 idx) $ head c)
       Cost _ ->
           kobenate (drop 1 idx) $ head c
 
@@ -131,7 +130,7 @@ vorecOpt !d !a = do
   x <- getRandom
   t <- asks _threashold
   if x < t
-    then trace ("Opt,t=" ++ show t) $ local (\s@State{_threashold=t₀, _decayₒ=δ}->s{_threashold=t₀/δ}) a
+    then {- trace ("Opt,t=" ++ show t) $-} local (\s@State{_threashold=t₀, _decayₒ=δ}->s{_threashold=t₀/δ}) a
     else return d
       
 
@@ -140,6 +139,7 @@ vorecMul !a = do
   x <- getRandom
   t <- asks _threashold
   if x < t
-    then trace ("Mul,t=" ++ show t) $ local (\s@State{_threashold=t₀, _decayₘ=δₘ}->s{_threashold=t₀/δₘ}) $ 
+    then {- trace ("Mul,t=" ++ show t) $ -}
+           local (\s@State{_threashold=t₀, _decayₘ=δₘ}->s{_threashold=t₀/δₘ}) $ 
                ((:) <$> a <*> vorecMul a)
     else return []

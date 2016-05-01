@@ -1,9 +1,15 @@
 cat dog : D- & @P- & A+ ;
 
-a the : D+ ;
+a : Du+ ;
+the : Dd+ ;
 
 lazy brown : P+ ;
 
-runs kills eats : A- & [H-] ;
+runs : A- & {H-} & {W+} ;
+kills eats : Ax- ;
 
 quickly slowly : H+ ;
+
+to around : W- & L+ ;
+
+box car : {P-} & L- ;
