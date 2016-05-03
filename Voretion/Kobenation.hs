@@ -7,7 +7,7 @@ module Voretion.Kobenation
     , State(..)
     ) where
 
-import Control.Monad.Random
+-- import Control.Monad.Random
 import Control.Monad.Reader
 import LinkGrammar.AST
 import LinkGrammar.Process
@@ -27,28 +27,15 @@ data Kob = Kob
     TL String Link
     deriving (Eq, Show)
 
-{-             
-Example kobenation:
- 
-  ______
- /    __\  ___
- |   /   \/   \  
- A black cat runs.
-
-It's represented as:
-Kob "cat" [Kob "A" [] [], Kob "black" [] []] [Kob "runs"]
-
-represents the same topology.
--}
-
 instance PrettyPrint Kob where
-    pretty = drawTree . go ""
-        where go x (Kob a (d, u)) = Node (a ++ x) $ map (go "-") d ++ map (go "+") u
+  pretty = drawTree . go ""
+    where go x (Kob a (d, u)) = Node (a ++ x) $ map (go "-") d ++ map (go "+") u
+
 data State = State {
-      _threashold :: Float
-    , _decayₒ
-    , _decayₘ :: Float
-    }
+    _threashold :: Float
+  , _decayₒ
+  , _decayₘ :: Float
+  }
 
 humanize :: Kob -> String
 humanize (Kob a (d, u)) = unwords [(unwords $ map humanize d), a, (unwords $ map humanize u)]

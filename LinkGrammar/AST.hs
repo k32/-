@@ -12,14 +12,13 @@ module LinkGrammar.AST
   , LVal(..)
   , exactCompare
   , module Data.Tree
-  , module Data.Tree.Zipper
+--  , module Data.Tree.Zipper
   )
   where
 
 import Data.PrettyPrint
 import Data.List
 import Data.Tree
-import Data.Tree.Zipper
 import Data.Binary
 import GHC.Generics (Generic)
 

@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns, FlexibleContexts, DeriveGeneric #-}
+{-# LANGUAGE BangPatterns, FlexibleContexts, DeriveGeneric, TemplateHaskell #-}
 module LinkGrammar.Process
     (
       makeRuleset
@@ -8,6 +8,7 @@ module LinkGrammar.Process
     , loadRuleset
     ) where
 
+import Control.Lens
 import LinkGrammar.AST
 import Data.PrettyPrint
 import Data.Tree
@@ -19,33 +20,24 @@ import Control.Monad.Reader
 import qualified Data.Map.Strict as M
 import qualified Data.Vector as V
 import Data.Binary
-import GHC.Generics (Generic)
+import Data.TernaryTree as TT
+import GHC.Generics
 
 type RuleIndex = [(Int, [Int])]
-
-data Ruleset = Ruleset {
-      _rules :: V.Vector Rule'
-    , _index :: M.Map LinkID RuleIndex
-    }  deriving (Show)
-
-data Ruleset' = Ruleset' {
-      _rules' :: [Rule']
-    , _index' :: [(Hack, RuleIndex)]
-    } deriving (Generic)
-             
-instance Binary Ruleset'
     
 data Rule' = Rule' {
       _lval' :: ![NLPWord]
     , _links' :: !Link
     } deriving (Show, Eq, Generic)
-
+makeLenses ''Rule'
 instance Binary Rule'
 
--- data Rule'' = Rule'' {
---       _lval'' :: [NLPWord]
---     , _link'' :: Link' Full
---     } -- deriving (Show)
+data Ruleset = Ruleset {
+      _rules :: V.Vector Rule'
+    , _uplinks
+    , _downlinks :: TTree Char RuleIndex
+    }  deriving (Show)
+makeLenses ''Ruleset
 
 makeRuleset :: [Rule] -> Ruleset
 makeRuleset rr =
@@ -55,52 +47,37 @@ makeRuleset rr =
         rules' = V.fromList $ map (assocFlatten . costPropagate . deMacrify macros [])
                  rules
 
-        index0 = (`execState` M.empty) $ V.imapM_ makeIndex rules'
+        ruleset0 = Ruleset undefined TT.empty TT.empty
+        ruleset' = (`execState` ruleset0) $ V.imapM_ makeIndex rules'
 
         makeIndex idx (Rule' _ y) = (`runReaderT` []) $ go idx y
 
-        go :: (MonadReader [Int] m, MonadState (M.Map Hack RuleIndex) m) =>
+        go :: (MonadReader [Int] m, MonadState Ruleset m) =>
               Int -> Link -> m ()
         go idx Node {subForest = u, rootLabel = p}
             = case p of
-                Link _ e -> do
+                Link _ (LinkID li ld) -> do
                        path <- ask
-                       modify $ M.insertWith (++) (Hack e) [(idx, reverse $ idx:path)]
+                       let setter = case ld of
+                                      Plus -> uplinks
+                                      Minus -> downlinks
+                       setter %= TT.insertWith (++) li [(idx, reverse $ idx:path)]
                 _ ->
                   mapM_ (\(s, n) -> local (n:) $ go idx s) $ zip u [0..]
         
     in
-      Ruleset {
+      ruleset' {
           _rules = rules'
-          -- !!!!! HACK HACK HACK !!!!!
-        , _index = M.fromDistinctAscList $ map (\(a,b) -> (unHack a, b)) $ M.toList index0
-        }     
+        }
 
 saveRuleset :: Ruleset -> FilePath -> IO ()
-saveRuleset r fileName =
-    let
-        r' = Ruleset' {
-               _rules' = V.toList $ _rules r
-             , _index' = M.toList $ M.mapKeys Hack $ _index r
-             }
-    in encodeFile fileName r'
+saveRuleset Ruleset{_rules=r, _uplinks=u, _downlinks=d} fileName = encodeFile fileName (V.toList r, u, d)
 
 loadRuleset :: FilePath -> IO Ruleset
 loadRuleset filePath = do
-  r <- decodeFile filePath
-  return Ruleset {
-             _rules = V.fromList $! _rules' r
-           -- HACK!!!!
-           , _index = M.fromDistinctAscList $! map (\(a, b) -> (unHack a, b)) $ _index' r
-           }
-
-data Hack = Hack { unHack :: !LinkID }
-    deriving (Eq, Generic)
-
-instance Binary Hack
-
-instance Ord Hack where
-    compare (Hack a) (Hack b) = exactCompare a b
+  (r, u, d) <- decodeFile filePath
+  return Ruleset {_rules=V.fromList r, _uplinks=u, _downlinks=d}
+     
 
 (=*=) :: LinkID -> LinkID -> Bool
 (LinkID x _) =*= (LinkID y _) = f x y

@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 module Data.TernaryTree
        (
          TTree
@@ -14,6 +15,8 @@ module Data.TernaryTree
 import qualified Data.Foldable as Fld
 import Data.Traversable
 import Data.Maybe
+import GHC.Generics
+import Data.Binary
 
 import Debug.Trace
 
@@ -27,7 +30,8 @@ data TTree k v =
   , _height :: !Int
   }
   | TTNil
-  deriving (Show)
+  deriving (Show, Generic)
+instance (Binary k, Binary v) => Binary (TTree k v)
 
 -- With no balancing whatsoever by now...
 insert :: (Ord k)
