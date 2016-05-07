@@ -9,6 +9,9 @@ module Control.Monad.Voretion (
        , MonadVoretion(..)
        ) where
 
+import Data.Function
+import Data.List
+
 class Monad m => MonadVoretion m where
   fork :: Float -> a -> a -> m a
   guard :: Bool -> m ()

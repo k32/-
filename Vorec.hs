@@ -12,7 +12,7 @@ main = do
   ruleset <- loadRuleset ruleFile
   hPutStrLn stderr "Done."
   -- print ruleset
-  let cfg = State {
+  let cfg = Config {
               _threashold = 0.9
             , _decayₒ = 10
             , _decayₘ= 6
