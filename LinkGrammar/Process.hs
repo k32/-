@@ -137,11 +137,27 @@ costPropagate (Rule' lval links) = Rule' lval $ go 0 links
                   go (n+x) $ head s
               (Link cost linkID) ->
                   Node {rootLabel=Link (cost + n) linkID, subForest=[]}
-              a ->
+              (LinkOr cost) ->
                   Node {
-                     rootLabel = a
+                     rootLabel = LinkOr $ cost+n
                    , subForest = map (go n) s
                    }
+              (LinkAnd cost) ->
+                  Node {
+                     rootLabel = LinkAnd $ cost+n
+                   , subForest = map (go n) s
+                   }
+              (Optional cost) ->
+                  Node {
+                     rootLabel = Optional $ cost+n
+                   , subForest = map (go n) s
+                   }
+              (MultiConnector cost) ->
+                  Node {
+                     rootLabel = MultiConnector $ cost+n
+                   , subForest = map (go n) s
+                   }
+
 
 {-
 a or (b or c) or d -> a or b or c or d

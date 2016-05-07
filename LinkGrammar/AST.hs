@@ -84,17 +84,26 @@ instance PrettyPrint LinkID where
     pretty (LinkID a Plus) =  a ++ "+"
     pretty (LinkID a Minus) = a ++ "-"
 
-data NodeType = Optional
-              | Link Float LinkID
-              | LinkAnd
-              | LinkOr
+data NodeType = Optional {_cost :: !Float}
+              | Link {_cost :: !Float, _link :: !LinkID}
+              | LinkAnd {_cost :: !Float}
+              | LinkOr {_cost :: !Float}
               | Macro MacroName
-              | MultiConnector
+              | MultiConnector {_cost :: !Float}
               | Cost Float
               | EmptyLink
               deriving (Eq, Show, Generic)
 
 instance Binary NodeType
+
+getCost :: NodeType -> Float
+getCost (Optional c) = c
+getCost (Link c _) = c
+getCost (LinkAnd c) = c
+getCost (LinkOr c) = c
+getCost (MultiConnector c) = c
+getCost (Cost c) = c
+getCost _ = 0
 
 type Link = Tree NodeType
 
@@ -103,21 +112,21 @@ type Link = Tree NodeType
 paren :: Link -> String
 paren a@Node {rootLabel = r} =
     case r of
-      Link _ _ -> pretty a
-      Macro _  -> pretty a
-      Optional -> pretty a
-      Cost _   -> pretty a
-      _        -> "(" ++ pretty a ++ ")"
+      Link _ _   -> pretty a
+      Macro _    -> pretty a
+      Optional _ -> pretty a
+      Cost _     -> pretty a
+      _          -> "(" ++ pretty a ++ ")"
 
 instance PrettyPrint Link where
     pretty Node {rootLabel = r, subForest = l} =
         case r of
-          Link _ a       -> pretty a
-          Macro a        -> "<" ++ a ++  ">"
-          LinkOr         -> intercalate " or " (map paren l)
-          LinkAnd        -> intercalate " & " (map paren l)
-          Optional       -> "{ " ++ pretty (head l) ++ " }"
-          MultiConnector -> "@" ++ paren (head l)
+          Link _ a         -> pretty a
+          Macro a          -> "<" ++ a ++  ">"
+          LinkOr _         -> intercalate " or " (map paren l)
+          LinkAnd _        -> intercalate " & " (map paren l)
+          Optional _       -> "{ " ++ pretty (head l) ++ " }"
+          MultiConnector _ -> "@" ++ paren (head l)
           Cost x
               | x /= 1   -> "[ " ++ pretty (head l) ++ " ]" ++ show x ++ " "
               | True     -> "[ " ++ pretty (head l) ++ " ]"

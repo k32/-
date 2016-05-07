@@ -1,7 +1,10 @@
 {-# LANGUAGE GADTs, RecordWildCards
   #-}
 {-
-Yet another probabilistic monad
+Yet another probabilistic monad.
+
+Disclaimer: by no means it's intended for serious
+applications. Correctness and performance weren't tested nor guaranteed!
 -}
 module Control.Monad.Voretion (
          Sample
@@ -16,16 +19,27 @@ import System.Random
 import qualified Data.Map as M
 
 class Monad m => MonadVoretion m where
-  fork :: Float -> a -> a -> m a
-  guard :: Bool -> m ()
-  getRandomR :: (Random a) => (a, a) -> m a
+  -- | Returns either of values
+  fork :: Float  -- ^ Probability of the first value
+       -> a      -- ^ First value
+       -> a      -- ^ Second value
+       -> m a
+
+  -- | Aborts execution if condition isn't met
+  guard :: Bool  -- ^ Condition
+        -> m ()
+
+  -- | Returns a random value form a range
+  getRandomR :: (Random a)
+             => (a, a)  -- ^ Range 
+             -> m a
 
 -- | This type is used to keep the structure of computation, it
 -- doesn't do anything on its own.  One needs an "voretion engine" to
 -- evaluate this.  Different evaluation strategies are possible.
 data Sample m a where
   -- | Fork picks either value from a pair. The choice is random and
-  -- _bias determines bias towards the first value.
+  -- _bias determines probability of the first value.
   Fork :: {
     _metaInfo :: !m           -- ^ Opaque data, it may be used by the execution engine
   , _left                     -- ^ First value
@@ -84,14 +98,14 @@ instance Applicative (Sample m) where
 instance Monad (Sample m) where
   Val{_unVal=v} >>= f = f v
   Fork{..}      >>= f = Fork {
-                          _next = \a -> _next a >>= f
-                        , ..
-                        }
+       _next = \a -> _next a >>= f
+     , ..
+     }
   Zero          >>= _ = Zero
   Random{..}    >>= f = Random {
-                          _next = \a -> _next a >>= f
-                        , ..
-                        }
+      _next = \a -> _next a >>= f
+    , ..
+    }
 
 class Default a where
   deFault :: a
@@ -139,6 +153,13 @@ class PickRandom c where
 instance PickRandom [] where
   pickRandom l = choice $ zip [1..] l
 
+{- | The simplest voretion engine, which just evaluetes all possible
+voretions of a program.
+
+Limitations:
+1. It doesn't support getRandomR calls!
+2. It's O(eⁿ).
+-}
 noRandom :: Float -> Sample () b -> [(b, Float)]
 noRandom ε = go 1
   where
@@ -147,7 +168,19 @@ noRandom ε = go 1
     go n Val{_unVal=v} = [(v, n)]
     go n Guard{_guarded=g} = go n g
     go n Fork{_bias=b, _next=f, _left=l, _right=r} = go (n*b) (f l) ++ go (n*(1-b)) (f r)
-    go n Random{} = error "Random isn't supported in noRandom voretion engine"
+    go n Random{} = error "Random isn't supported by noRandom voretion engine"
+
+{- | Metropolis-Hastings voretion engine.
+
+Limitations:
+It doesn't backtrack on failure. Effective backtracking
+can't be implemlemented in terms of a Markov chain voretion engine
+like this.
+-}
+mhmcVE :: Float -> Sample () b -> [b]
+mhmcVE ε x = undefined -- TBD
+
+-- Fun:
 
 histogram :: (Ord a) => Float -> Sample () a -> [(a, Float)]
 histogram ε = M.toList . (foldr (uncurry $ M.insertWith (+)) M.empty) . noRandom ε
