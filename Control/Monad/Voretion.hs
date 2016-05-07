@@ -7,28 +7,48 @@ module Control.Monad.Voretion (
          Sample
        , choice
        , MonadVoretion(..)
+       , PickRandom(..)
        ) where
 
 import Data.Function
 import Data.List
+import System.Random
+import qualified Data.Map as M
 
 class Monad m => MonadVoretion m where
   fork :: Float -> a -> a -> m a
   guard :: Bool -> m ()
+  getRandomR :: (Random a) => (a, a) -> m a
 
--- | This type is used to keep the structure of computation,
--- it doesn't do anything on its own.
+-- | This type is used to keep the structure of computation, it
+-- doesn't do anything on its own.  One needs an "voretion engine" to
+-- evaluate this.  Different evaluation strategies are possible.
 data Sample m a where
+  -- | Fork picks either value from a pair. The choice is random and
+  -- _bias determines bias towards the first value.
   Fork :: {
-    _metaInfo :: !m
-  , _left
-  , _right :: r
-  , _bias :: !Float
-  , _next :: r -> Sample m a
+    _metaInfo :: !m           -- ^ Opaque data, it may be used by the execution engine
+  , _left                     -- ^ First value
+  , _right :: r               -- ^ Second value
+  , _bias :: !Float           -- ^ Bias towards the first value
+  , _next :: r -> Sample m a  -- ^ Next expression
   } -> Sample m a
+  -- | Val is just a pure value
   Val :: {
     _unVal :: a
   } -> Sample m a
+  -- | Guard checks some expression and backtracks if it isn't true
+  Guard :: {
+    _metaInfo :: !m           -- ^ Opaque data, it may be used by the execution engine
+  , _guarded :: Sample m a    -- ^ Next expression
+  } -> Sample m a
+  -- | I don't know if this is going to work. It's likely to ruin the backtracking.
+  Random :: {
+    _metaInfo :: !m           -- ^ Opaque data, it may be used by the execution engine
+  , _range :: !(r, r)         -- ^ Range of the random number
+  , _next :: r -> Sample m a  -- ^ Next expression
+  } -> Sample m a
+  -- | Expression of zero probability. It should be discarded.
   Zero :: Sample m a
 
 instance Functor (Sample m) where
@@ -37,21 +57,41 @@ instance Functor (Sample m) where
       _next = \a -> fmap f $ _next a
     , ..
     }
+  fmap _ Zero = Zero
+  fmap f a@Guard{..} = Guard {
+      _guarded = fmap f _guarded
+    , ..
+    }
+  fmap f Random{..} = Random {
+      _next = \a -> fmap f $ _next a
+    , ..
+    }
 
 instance Applicative (Sample m) where
   pure a = Val a
 
   Val{_unVal=f} <*> a = fmap f a
-  f@Fork{..} <*> a = Fork {
+  Fork{..} <*> a = Fork {
+      _next = \x -> (_next x) <*> a
+    , ..
+    }
+  Zero <*> _ = Zero
+  Random{..} <*> a = Random { -- Crazy-ass weirdo haskeller, why did you define instance Random (->)?!!
       _next = \x -> (_next x) <*> a
     , ..
     }
 
 instance Monad (Sample m) where
   Val{_unVal=v} >>= f = f v
-  Fork{..}      >>= f = Fork{ _next = \a -> _next a >>= f
-                            , ..
-                            }
+  Fork{..}      >>= f = Fork {
+                          _next = \a -> _next a >>= f
+                        , ..
+                        }
+  Zero          >>= _ = Zero
+  Random{..}    >>= f = Random {
+                          _next = \a -> _next a >>= f
+                        , ..
+                        }
 
 class Default a where
   deFault :: a
@@ -68,12 +108,22 @@ instance (Default m) => MonadVoretion (Sample m) where
     , _next = \a -> Val{_unVal=a}
     }
 
-  guard True = return ()
   guard False = Zero
+  guard True = Guard {
+      _guarded = Val ()
+    , _metaInfo = deFault
+    }
+
+  getRandomR r = Random {
+      _metaInfo = deFault
+    , _range = r
+    , _next = \a -> Val a
+    }
 
 -- TODO: Not very effective, rewrite me
+-- ...Also there's summation of many floats, I smell problems with that
 choice :: MonadVoretion m => [(Float, a)] -> m a
-choice l = go (reverse $ scanl (\a b -> fst b + a) 0 l) $ reverse l
+choice l = go (reverse $ scanl (\a b -> fst b + a) 0 l) $ reverse l 
   where
     go _ [(_,x)] = return x
     go (pc:tp) ((p,x):t) = do
@@ -82,24 +132,47 @@ choice l = go (reverse $ scanl (\a b -> fst b + a) 0 l) $ reverse l
         return x
       else
         go tp t
-        
+
+class PickRandom c where
+  pickRandom :: (MonadVoretion m) => c a -> m a
+
+instance PickRandom [] where
+  pickRandom l = choice $ zip [1..] l
+
 noRandom :: Float -> Sample () b -> [(b, Float)]
-noRandom epsilon = go 1
+noRandom ε = go 1
   where
     go _ Zero = []
-    go n _ | n<epsilon = []
+    go n _ | n<ε = []
     go n Val{_unVal=v} = [(v, n)]
+    go n Guard{_guarded=g} = go n g
     go n Fork{_bias=b, _next=f, _left=l, _right=r} = go (n*b) (f l) ++ go (n*(1-b)) (f r)
+    go n Random{} = error "Random isn't supported in noRandom voretion engine"
 
--- histogram :: (Ord a) => Float -> Sample () b -> [(b, Float)]
--- histogram epsilon x = undefined -- TBD
+histogram :: (Ord a) => Float -> Sample () a -> [(a, Float)]
+histogram ε = M.toList . (foldr (uncurry $ M.insertWith (+)) M.empty) . noRandom ε
+
+drawHistogram :: (Ord a) => Int -> Float -> Sample () a -> IO ()
+drawHistogram height ε x =
+  let
+    h = histogram ε x
+    m = maximum $ snd $ unzip h
+    f (_,h) = ('|' : replicate n ' ')  ++ "*"
+      where n = truncate $ (fromIntegral height) * h / m
+  in do
+    putStrLn $ (replicate (height+2) '-') ++ ">"
+    mapM_ (putStrLn . f) h
+    putStrLn "v"
 
 {-
+Examples:
 
+1. Coin
 @
 coin = fork 0.5 Tails Heads
 @
 
+2. Geometric distribution
 @
 test :: (MonadVoretion m) => Int -> m Int
 test n = do
@@ -110,9 +183,10 @@ test n = do
     return n
 @
 
+3. Binomial distribution
 @
-test2 :: (MonadVoretion m) => Int -> m Int
-test2 n = sum <$> replicateM n (fork 0.5 0 1)
+test2 :: (MonadVoretion m) => Int -> Float -> m Int
+test2 n p = sum <$> replicateM n (fork p 0 1)
 @
 
 -}

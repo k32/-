@@ -30,6 +30,7 @@ executable Voretion
                      , vector >= 0.11 && <0.12
                      , binary >= 0.7 && <0.8
                      , bytestring >= 0.10 && <0.11
+                     , random
                      , lens
   
   -- Directories containing source files.
