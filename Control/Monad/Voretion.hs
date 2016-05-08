@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, RecordWildCards
+{-# LANGUAGE GADTs, RecordWildCards, FlexibleInstances
   #-}
 {-
 Yet another probabilistic monad.
@@ -9,6 +9,7 @@ applications. Correctness and performance weren't tested nor guaranteed!
 module Control.Monad.Voretion (
          Sample
        , choice
+       , liftMaybe
        , MonadVoretion(..)
        , PickRandom(..)
        ) where
@@ -17,19 +18,20 @@ import Data.Function
 import Data.List
 import System.Random
 import qualified Data.Map as M
+import Control.Monad.Cont hiding (guard)
 
 class Monad m => MonadVoretion m where
-  -- | Returns either of values
+  -- | Returns either of the arguments with certain probability
   fork :: Float  -- ^ Probability of the first value
        -> a      -- ^ First value
        -> a      -- ^ Second value
        -> m a
 
-  -- | Aborts execution if condition isn't met
+  -- | Aborts execution if some condition isn't met
   guard :: Bool  -- ^ Condition
         -> m ()
 
-  -- | Returns a random value form a range
+  -- | Returns a random value from a range
   getRandomR :: (Random a)
              => (a, a)  -- ^ Range 
              -> m a
@@ -147,13 +149,17 @@ choice l = go (reverse $ scanl (\a b -> fst b + a) 0 l) $ reverse l
       else
         go tp t
 
+liftMaybe :: MonadVoretion m => Maybe a -> m a
+liftMaybe (Just a) = guard True >> return a
+liftMaybe Nothing  = guard False >> return undefined
+
 class PickRandom c where
   pickRandom :: (MonadVoretion m) => c a -> m a
 
 instance PickRandom [] where
   pickRandom l = choice $ zip [1..] l
 
-{- | The simplest voretion engine, which just evaluetes all possible
+{- | The simplest voretion engine which just evaluetes all possible
 voretions of a program.
 
 Limitations:
@@ -170,11 +176,26 @@ noRandom ε = go 1
     go n Fork{_bias=b, _next=f, _left=l, _right=r} = go (n*b) (f l) ++ go (n*(1-b)) (f r)
     go n Random{} = error "Random isn't supported by noRandom voretion engine"
 
+{-    0.3
+     /
+  0.6\0.3
+ /   
+1     0.4
+ \0.4/
+     \0.0
+-}
+
+instance Default (Bool, Bool) where
+  deFault = (False, False)
+
+maxProbabilityFirst :: (RandomGen g) => g -> Sample (Bool, Bool) b -> b
+maxProbabilityFirst rgen e = undefined -- TBD
+
 {- | Metropolis-Hastings voretion engine.
 
 Limitations:
-It doesn't backtrack on failure. Effective backtracking
-can't be implemlemented in terms of a Markov chain voretion engine
+It doesn't backtrack on failure. Effective search strategies 
+can't be implemented in terms of a Markov chain voretion engine
 like this.
 -}
 mhmcVE :: Float -> Sample () b -> [b]

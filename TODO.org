@@ -4,14 +4,21 @@ Concatenate rules instead
 ** DONE [#C] Add parsing of numeric costs
 Not sure if really needed; we probably won't use costs for starters.
 
-Kind of done, but we just drop the numbers.
++Kind of done, but we just drop the numbers.+
 
 ** TODO [#B] Handle connectors in the lvals
+
+** TODO [#B] Separate index and the ruleset, load rules on demand
 * Generator
 ** TODO What data structure is needed to effectively lookup links
- - Trie + zippers?
++- Trie + zippers?+
+Ternary tree
 ** TODO [#B] Add some psihoza
 We should use other method to enrich the dictionary.
 ** TODO Ruleset
-*** TODO Macros
-*** TODO [#B] Reverse search
+*** DONE Macros
+There are no macros in the ruleset
+*** TODO [#C] Reverse search
+** TODO [#A] Fix word order
+*** TODO [#A] Inequalities?
+*** TODO [#B] Proper voretion engine

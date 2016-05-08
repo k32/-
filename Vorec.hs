@@ -9,7 +9,7 @@ import Control.Monad
 main = do
   ruleFile <- head <$> getArgs
   hPutStrLn stderr "Loading ruleset..."
-  ruleset <- loadRuleset ruleFile
+  ruleset <- loadRuleset ruleFile -- TODO: Deserialize lazily
   hPutStrLn stderr "Done."
   -- print ruleset
   let cfg = Config {

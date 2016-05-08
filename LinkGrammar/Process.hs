@@ -67,8 +67,8 @@ makeRuleset rr =
         
     in
       ruleset' {
-          _rules = rules'
-        }
+        _rules = rules'
+      }
 
 saveRuleset :: Ruleset -> FilePath -> IO ()
 saveRuleset Ruleset{_rules=r, _uplinks=u, _downlinks=d} fileName = encodeFile fileName (V.toList r, u, d)
@@ -113,7 +113,7 @@ deMacrify m l (Rule' ł r) =
                             Macro n -> do
                                 if n `elem` l₀
                                    then error $ "deMacrify: Loop detected, see macro " ++ n ++
-                                                " in rule " ++ show ł
+                                                " in the rule " ++ show ł
                                    else return ()
                                 modify (n:) -- TODO: duplicates
                                 return $ m M.! n
