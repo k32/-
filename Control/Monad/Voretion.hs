@@ -21,7 +21,8 @@ import qualified Data.Map as M
 import Control.Monad.Cont hiding (guard)
 
 class Monad m => MonadVoretion m where
-  -- | Returns either of the arguments with certain probability
+  -- | Bernoulli distribution. Returns either of the arguments with
+  -- certain probability
   fork :: Float  -- ^ Probability of the first value
        -> a      -- ^ First value
        -> a      -- ^ Second value
@@ -218,8 +219,7 @@ drawHistogram height ε x =
     mapM_ (putStrLn . f) h
     putStrLn "v"
 
-{-
-Examples:
+{- | Examples:
 
 1. Coin
 @
