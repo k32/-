@@ -18,17 +18,13 @@ main = do
     Right x -> return x
     Left y -> error y
   let boolopts' = boolopts options
--- TODO: specify output file
       options' = options {boolopts = boolopts' {locations = False}}
   files <- mapM (processFile options') $ CPP.infiles options'
   let ast = foldr (liftA2 (++)) (pure []) files
   case ast of
     Left x      -> putStrLn x
     Right rules -> do
-             let ruleset = makeRuleset rules
+             makeRuleset "ruleset" rules
              mapM (putStrLn . pretty) $ take 20 rules
              --mapM (putStrLn . drawTree . fmap show . _links) $ take 20 rules
              printf "...\nOk, imported %d rules\n" $ length rules
-             putStrLn "Offloading rules..."
-             saveRuleset ruleset "./ruleset.dat" 
-             

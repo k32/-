@@ -17,7 +17,6 @@ import Data.Traversable
 import Data.Maybe
 import GHC.Generics
 import Data.Binary
-
 import Debug.Trace
 
 data TTree k v =
@@ -68,7 +67,7 @@ insertWith' :: (Ord k)
             -> v             -- ^ Value
             -> TTree k v     -- ^ Tree
             -> TTree k v
-insertWith' f k1@(k:kt) h v t =
+insertWith' f k1@(k:kt) h v t = 
   case t of
     TTNil ->
       insertWith' f k1 h v $ TNode {
