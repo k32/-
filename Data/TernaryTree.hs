@@ -70,7 +70,7 @@ insertWith' :: (Ord k)
 insertWith' f k1@(k:kt) h v t = 
   case t of
     TTNil ->
-      insertWith' f k1 h v $ TNode {
+      insertWith' f k1 h v $! TNode {
           _key = k
         , _eq = TTNil
         , _left = TTNil
@@ -81,8 +81,13 @@ insertWith' f k1@(k:kt) h v t =
     node@TNode{_key=k0, _height=h0, _val=v0, _eq=eq0, _left=left0, _right=right0} ->
       case compare k0 k of
         EQ | null kt ->
-               node {
-                 _val = Just $ maybe v (flip f $ v) v0
+               TNode {
+                 _key = k0
+               , _val = Just $! maybe v (flip f $ v) v0
+               , _height = h0
+               , _eq = eq0
+               , _left = left0
+               , _right = right0
                }
            | True ->
                node {

@@ -25,10 +25,11 @@ import Data.TernaryTree as TT
 import GHC.Generics
 import System.IO (Handle, hTell, withFile, IOMode(..))
 import Control.DeepSeq
+import Debug.Trace
 
 type Offset = Integer
 
-type RuleIndex = [(Offset, [Int])]
+type RuleIndex = [Offset]
     
 data Rule' = Rule' {
       _lval' :: ![NLPWord]
@@ -45,31 +46,43 @@ data Ruleset r = Ruleset {
 makeLenses ''Ruleset
 instance (Binary a) => Binary (Ruleset a)
 
+-- type MakeRulesetState = (M.Map String RuleIndex, M.Map String RuleIndex)
+type MakeRulesetState = (TT.TTree Char RuleIndex, TT.TTree Char RuleIndex)
+
 makeRuleset :: String -> [Rule] -> IO ()
 makeRuleset path rr =
     let
-        ruleset0 = Ruleset {_rules=(), _uplinks=TT.empty, _downlinks=TT.empty}
+       -- ruleset0 = Ruleset {_rules=(), _uplinks=TT.empty, _downlinks=TT.empty}
+        ruleset0 = (TT.empty, TT.empty)
+          
         (macros, rules) = sortOut rr
 
-        rules' = map (assocFlatten . costPropagate . deMacrify macros)
+        rules' = -- map (assocFlatten . costPropagate)
                  rules
 
-        dumpRule :: (MonadState (Ruleset a) m, MonadIO m) => Handle -> Rule' -> m ()
+        writeRule handle r = do
+          liftIO $ trace "Writing rule..." $ return ()
+          liftIO $ hPut handle $ encode r
+          liftIO $ trace "Done..." $ return ()
+
+        dumpRule :: (MonadState MakeRulesetState m, MonadIO m) => Handle -> Rule' -> m ()
         dumpRule handle rule = do
           pos <- liftIO $ hTell handle
-          liftIO $ hPut handle $ encode rule
+          writeRule handle rule
           (`runReaderT` []) $ go pos $ _links' rule
 
-        go :: (MonadReader [Int] m, MonadState (Ruleset a) m) =>
+        go :: (MonadReader [Int] m, MonadState MakeRulesetState m) =>
               Offset -> Link -> m ()
         go offset Node {subForest = u, rootLabel = p}
             = case p of
                 Link _ (LinkID li ld) -> do
                        path <- ask
                        let setter = case ld of
-                                      Plus -> uplinks
-                                      Minus -> downlinks
-                       setter %= TT.insertWith (++) li [(offset, reverse path)]
+                                      Plus -> _1
+                                      Minus -> _2
+                       setter %= TT.insertWith (++) li [offset]
+                Macro m ->
+                  go offset $ macros M.! m
                 _ ->
                   mapM_ (\(s, n) -> local (n:) $ go offset s) $ zip u [0..]
         
@@ -77,7 +90,7 @@ makeRuleset path rr =
       withFile (path ++ ".rules") WriteMode $ \hRules -> do
         putStrLn "Dumping rules..."
         index <- (`execStateT` ruleset0) $ mapM (dumpRule hRules) rules'
-        encodeFile (path ++ ".idx") (TT.toList $ _uplinks index, TT.toList $ _downlinks index)
+        encodeFile (path ++ ".idx") $ both %~ TT.toList $ index
 
 withRuleset :: FilePath -> (Ruleset Handle -> IO a) -> IO a
 withRuleset filePath f = do
@@ -139,34 +152,36 @@ deMacrify m rule@(Rule' ł r) =
     in
      Rule' ł r'
 
-costPropagate :: Rule' -> Rule'
-costPropagate (Rule' !lval !links) = Rule' lval $! go 0 links
-  where go n node@Node{subForest=s, rootLabel=l} =
-            case l of
-              Cost x ->
-                  go (n+x) $! head s
-              (Link cost linkID) ->
-                  Node {rootLabel=Link (cost + n) linkID, subForest=[]}
-              (LinkOr cost) ->
-                  Node {
-                     rootLabel = LinkOr $! cost+n
-                   , subForest = map (go n) s
-                   }
-              (LinkAnd cost) ->
-                  Node {
-                     rootLabel = LinkAnd $! cost+n
-                   , subForest = map (go n) s
-                   }
-              (Optional cost) ->
-                  Node {
-                     rootLabel = Optional $! cost+n
-                   , subForest = map (go n) s
-                   }
-              (MultiConnector cost) ->
-                  Node {
-                     rootLabel = MultiConnector $! cost+n
-                   , subForest = map (go n) s
-                   }
+-- costPropagate :: Rule' -> Rule'
+-- costPropagate (Rule' !lval !links) = Rule' lval $! go 0 links
+--   where go n node@Node{subForest=s, rootLabel=l} =
+--             case l of
+--               Macro m ->
+--                 Macro m {- TODO: this doesn't work -}
+--               Cost x ->
+--                 go (n+x) $! head s
+--               (Link cost linkID) ->
+--                 Node {rootLabel=Link (cost + n) linkID, subForest=[]}
+--               (LinkOr cost) ->
+--                 Node {
+--                      rootLabel = LinkOr $! cost+n
+--                    , subForest = map (go n) s
+--                    }
+--               (LinkAnd cost) ->
+--                   Node {
+--                      rootLabel = LinkAnd $! cost+n
+--                    , subForest = map (go n) s
+--                    }
+--               (Optional cost) ->
+--                   Node {
+--                      rootLabel = Optional $! cost+n
+--                    , subForest = map (go n) s
+--                    }
+--               (MultiConnector cost) ->
+--                   Node {
+--                      rootLabel = MultiConnector $! cost+n
+--                    , subForest = map (go n) s
+--                    }
 
 
 {-

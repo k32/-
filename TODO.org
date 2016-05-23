@@ -9,6 +9,10 @@ Not sure if really needed; we probably won't use costs for starters.
 ** TODO [#B] Handle connectors in the lvals
 
 ** TODO [#B] Separate index and the ruleset, load rules on demand
+
+** TODO [#A] Consider cost of full indices
+
+** TODO [#A] Bring macros back to the ruleset
 * Generator
 ** TODO What data structure is needed to effectively lookup links
 +- Trie + zippers?+
