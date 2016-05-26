@@ -18,6 +18,7 @@ import Data.Maybe
 import GHC.Generics
 import Data.Binary
 import Debug.Trace
+import Control.DeepSeq
 
 data TTree k v =
   TNode {
@@ -31,6 +32,7 @@ data TTree k v =
   | TTNil
   deriving (Show, Generic)
 instance (Binary k, Binary v) => Binary (TTree k v)
+instance (NFData a, NFData b) => NFData (TTree a b)
 
 -- With no balancing whatsoever by now...
 insert :: (Ord k)
@@ -51,7 +53,7 @@ insertWith :: (Ord k)
            -> v             -- ^ Value
            -> TTree k v     -- ^ Tree
            -> TTree k v
-insertWith _ [] = error "FuzzyMap.hs: attempt to insert object with empty key"
+insertWith _ [] = error "TernaryTree.hs: attempt to insert object with an empty key"
 insertWith f k = insertWith' f k (length k)
 {-# SPECIALIZE insertWith :: (v -> v -> v) 
                           -> [Char] 

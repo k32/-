@@ -13,9 +13,8 @@ fi
 for file in $(find $directory -name '*.dict' -or -name '4.0.*' -and -not -name '*.bak')
 do
     sed  -i.bak                                       \
-         -e 's/^\/\([a-z0-9\/.]*\)/#include "\1"\n/g' \ # Fix "/ru/words/1.dict : " like thingies
-         -e 's/^\(#include \+".*"\)\(.+\)/\1\n\2/g'   \ # Fix tokens after #include
-         -e 's/#include \+"\/\(.*\)"/#include "\1"/'  \ # Remove absolute paths
+         -e 's/^\/\([a-z0-9\/.]*\)/#include "\1"\n/g' \
+         -e 's/#include \+"\/\(.*\)"/#include "\1"/'  \
          $file
     echo "Preparing" $file
 done

@@ -37,6 +37,22 @@ class Monad m => MonadVoretion m where
              => (a, a)  -- ^ Range 
              -> m a
 
+  -- TODO: Not very effective, rewrite me
+  -- ...Also there's summation of many floats, I smell problems with that
+  choice :: MonadVoretion m
+         => [(Float, a)]
+         -> m a
+  choice l = go (reverse $ scanl (\a b -> fst b + a) 0 l) $ reverse l 
+    where
+      go _ [(_,x)] = return x
+      go (pc:tp) ((p,x):t) = do
+        c <- fork (p/pc) True False
+        if c then
+          return x
+        else
+          go tp t
+
+
 -- | This type is used to keep the structure of computation, it
 -- doesn't do anything on its own.  One needs an "voretion engine" to
 -- evaluate this.  Different evaluation strategies are possible.
@@ -97,6 +113,11 @@ instance Applicative (Sample m) where
       _next = \x -> (_next x) <*> a
     , ..
     }
+  Guard{..} <*> a = Guard {
+      _guarded = _guarded <*> a
+    , ..
+    }
+
 
 instance Monad (Sample m) where
   Val{_unVal=v} >>= f = f v
@@ -109,6 +130,12 @@ instance Monad (Sample m) where
       _next = \a -> _next a >>= f
     , ..
     }
+  Guard{..}     >>= f = Guard {
+      _guarded = _guarded >>= f
+    , ..
+    }
+
+  return = pure
 
 class Default a where
   deFault :: a
@@ -136,19 +163,6 @@ instance (Default m) => MonadVoretion (Sample m) where
     , _range = r
     , _next = \a -> Val a
     }
-
--- TODO: Not very effective, rewrite me
--- ...Also there's summation of many floats, I smell problems with that
-choice :: MonadVoretion m => [(Float, a)] -> m a
-choice l = go (reverse $ scanl (\a b -> fst b + a) 0 l) $ reverse l 
-  where
-    go _ [(_,x)] = return x
-    go (pc:tp) ((p,x):t) = do
-      c <- fork (p/pc) True False
-      if c then
-        return x
-      else
-        go tp t
 
 liftMaybe :: MonadVoretion m => Maybe a -> m a
 liftMaybe (Just a) = guard True >> return a

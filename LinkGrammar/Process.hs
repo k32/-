@@ -12,6 +12,7 @@ import LinkGrammar.AST
 import Data.PrettyPrint
 import Data.Tree
 import Data.List
+import qualified Data.Set as S
 import Data.Traversable
 import Control.Arrow
 import Control.Monad.State.Strict
@@ -29,7 +30,7 @@ import Debug.Trace
 
 type Offset = Integer
 
-type RuleIndex = [Offset]
+type RuleIndex = S.Set Offset
     
 data Rule' = Rule' {
       _lval' :: ![NLPWord]
@@ -37,11 +38,13 @@ data Rule' = Rule' {
     } deriving (Show, Eq, Generic)
 makeLenses ''Rule'
 instance Binary Rule'
+instance NFData Rule'
 
 data Ruleset r = Ruleset {
       _rules :: r
     , _uplinks
-    , _downlinks :: !(TTree Char RuleIndex)
+    , _downlinks :: {- (M.Map String RuleIndex) -}
+                    !(TTree Char RuleIndex)
     }  deriving (Generic, Show)
 makeLenses ''Ruleset
 instance (Binary a) => Binary (Ruleset a)
@@ -50,20 +53,21 @@ instance (Binary a) => Binary (Ruleset a)
 type MakeRulesetState = (TT.TTree Char RuleIndex, TT.TTree Char RuleIndex)
 
 makeRuleset :: String -> [Rule] -> IO ()
-makeRuleset path rr =
+makeRuleset outfile rr =
     let
        -- ruleset0 = Ruleset {_rules=(), _uplinks=TT.empty, _downlinks=TT.empty}
         ruleset0 = (TT.empty, TT.empty)
-          
+        -- ruleset0 = (M.empty, M.empty)
+        
         (macros, rules) = sortOut rr
 
         rules' = -- map (assocFlatten . costPropagate)
                  rules
 
-        writeRule handle r = do
-          liftIO $ trace "Writing rule..." $ return ()
-          liftIO $ hPut handle $ encode r
-          liftIO $ trace "Done..." $ return ()
+        writeRule handle r = liftIO $ do
+          -- putStrLn "Writing rule..."
+          hPut handle $ encode r
+          -- putStrLn "Done..."
 
         dumpRule :: (MonadState MakeRulesetState m, MonadIO m) => Handle -> Rule' -> m ()
         dumpRule handle rule = do
@@ -80,17 +84,20 @@ makeRuleset path rr =
                        let setter = case ld of
                                       Plus -> _1
                                       Minus -> _2
-                       setter %= TT.insertWith (++) li [offset]
+                       setter %= TT.insertWith (S.union) li (S.singleton offset)
                 Macro m ->
                   go offset $ macros M.! m
                 _ ->
                   mapM_ (\(s, n) -> local (n:) $ go offset s) $ zip u [0..]
         
-    in
-      withFile (path ++ ".rules") WriteMode $ \hRules -> do
+    in do
+      putStrLn "Dumping macros..."
+      encodeFile (outfile ++ ".macros") $ M.toList macros
+      putStrLn "Done."
+      withFile (outfile ++ ".rules") WriteMode $ \hRules -> do
         putStrLn "Dumping rules..."
         index <- (`execStateT` ruleset0) $ mapM (dumpRule hRules) rules'
-        encodeFile (path ++ ".idx") $ both %~ TT.toList $ index
+        encodeFile (outfile ++ ".index") index
 
 withRuleset :: FilePath -> (Ruleset Handle -> IO a) -> IO a
 withRuleset filePath f = do

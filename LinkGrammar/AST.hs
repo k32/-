@@ -21,12 +21,14 @@ import Data.List
 import Data.Tree
 import Data.Binary
 import GHC.Generics (Generic)
+import Control.DeepSeq
 
 data LinkDirection = Plus
                    | Minus
                    deriving (Eq, Show, Generic, Ord)
 
 instance Binary LinkDirection                            
+instance NFData LinkDirection
 
 instance PrettyPrint LinkDirection where
   pretty Plus  = "+"
@@ -48,6 +50,7 @@ data NLPWord =
     deriving (Eq, Generic, Show)
 
 instance Binary NLPWord
+instance NFData NLPWord
 
 instance PrettyPrint NLPWord where
     pretty NLPWord {_nlpword = w, _nlpclass = c}
@@ -60,6 +63,7 @@ data LinkID = LinkID {
     } deriving (Eq, Generic)
 
 instance Binary LinkID
+instance NFData LinkID
 
 instance Ord LinkID where
     compare (LinkID k i) (LinkID l j) =
@@ -95,6 +99,7 @@ data NodeType = Optional {_cost :: !Float}
               deriving (Eq, Show, Generic)
 
 instance Binary NodeType
+instance NFData NodeType
 
 getCost :: NodeType -> Float
 getCost (Optional c) = c
