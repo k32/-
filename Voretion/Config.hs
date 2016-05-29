@@ -9,3 +9,4 @@ data Config =
   , _pathToRuleset :: String
   , _cost_cost :: Float
   }
+  deriving Show

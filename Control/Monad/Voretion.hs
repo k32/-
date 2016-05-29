@@ -8,10 +8,10 @@ applications. Correctness and performance weren't tested nor guaranteed!
 -}
 module Control.Monad.Voretion (
          Sample
-       , choice
        , liftMaybe
        , MonadVoretion(..)
        , PickRandom(..)
+       , noRandom
        ) where
 
 import Data.Function
@@ -19,6 +19,7 @@ import Data.List
 import System.Random
 import qualified Data.Map as M
 import Control.Monad.Cont hiding (guard)
+import qualified Data.Vector as V (Vector, (!), length)
 
 class Monad m => MonadVoretion m where
   -- | Bernoulli distribution. Returns either of the arguments with
@@ -39,8 +40,7 @@ class Monad m => MonadVoretion m where
 
   -- TODO: Not very effective, rewrite me
   -- ...Also there's summation of many floats, I smell problems with that
-  choice :: MonadVoretion m
-         => [(Float, a)]
+  choice :: [(Float, a)]
          -> m a
   choice l = go (reverse $ scanl (\a b -> fst b + a) 0 l) $ reverse l 
     where
@@ -52,6 +52,19 @@ class Monad m => MonadVoretion m where
         else
           go tp t
 
+  discreteUniform :: Int
+                  -> m Int
+  discreteUniform = go 0
+    where go a b
+            | a == b     = return a
+            | b - a == 1 = fork 0.5 a b
+            | True       = do
+                let m = a + (b - a) `div` 2
+                    bias = (fromIntegral $ m-a)/(fromIntegral $ b-a)
+                x <- fork bias True False
+                if x
+                  then go a m
+                  else go m b
 
 -- | This type is used to keep the structure of computation, it
 -- doesn't do anything on its own.  One needs an "voretion engine" to
@@ -172,7 +185,10 @@ class PickRandom c where
   pickRandom :: (MonadVoretion m) => c a -> m a
 
 instance PickRandom [] where
-  pickRandom l = choice $ zip [1..] l
+  pickRandom l = (l !!) <$> (discreteUniform $ length l - 1)
+
+instance PickRandom V.Vector where
+  pickRandom v = (v V.!) <$> (discreteUniform $ V.length v - 1)
 
 {- | The simplest voretion engine which just evaluetes all possible
 voretions of a program.

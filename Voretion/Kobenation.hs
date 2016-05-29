@@ -1,16 +1,23 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Voretion.Kobenation (
     trySort
+  , kobenate
   ) where
 
 import Control.Lens
 import Control.Arrow
 import Control.Monad.Voretion
 import Control.Monad.Reader
+import Control.Monad.State
 import LinkGrammar.AST
 import LinkGrammar.Process
 import Voretion.Config
 import Data.List
 import Debug.Trace
+import qualified Data.Vector as V
+import qualified Data.Map as M
+import qualified Data.Set as S
+import Data.Foldable
 
 data Ineq a = a :<: a | FreeVal a
 
@@ -26,7 +33,10 @@ related = go ([], [], [])
                 | x == z -> go (y:lt, mt, unrelated) x t
                 | True -> go (lt, mt, a:unrelated) x t
 
-lessThan :: (Eq a) => a -> [Ineq a] -> ([a], [Ineq a])
+lessThan :: (Eq a)
+         => a
+         -> [Ineq a]
+         -> ([a], [Ineq a])
 lessThan = go ([], [])
   where
     go x _ [] = x
@@ -38,13 +48,14 @@ lessThan = go ([], [])
                 | x == z -> go (y:lt, o) x t
                 | True -> go (lt, a:o) x t
         
--- | Try to sort elements according to set of possibly nontransitive inequalities 
+-- | Try to sort elements according to a set of possibly nontransitive inequalities 
 {-
 The below algorithm is based on a lemma:
 Set of relations Sₛ on set S is transitive ⇒ ∃ s∈S, {i:<:s|i∈S} = ∅
 -}
-
-trySort :: (Eq a) => [Ineq a] -> Maybe [a]
+trySort :: (Eq a)
+        => [Ineq a]
+        -> Maybe [a]
 trySort τ = fmap (nub . reverse) $ go [] [] τ
   where
     -- uniqInsert a l
@@ -68,15 +79,60 @@ trySort τ = fmap (nub . reverse) $ go [] [] τ
         case lti of
           [] -> go (i:acc) [] $ FreeVal j:others
           _  -> go acc (v:acc2) t
-    
-type Seed = ()
 
--- tvoretion :: (MonadVoretion m)
---           => Ruleset
---           -> Config
---           -> Seed
---           -> m [String]
--- tvoretion ruleset config wordSeed = undefined
+linkFoldlPath :: (MonadReader [Int] m, Monad m)
+              => Macros
+              -> (a -> NodeType -> m a)
+              -> a
+              -> Link
+              -> m a
+linkFoldlPath macros f a0 l0 = (`runReaderT` []) $ go S.empty a0 l0
+  where go usedMacros a Node{rootLabel=label, subForest=sf} =
+          case label of
+            Macro m -> do
+              when (m `S.member` usedMacros) $
+                error $ "Macro loop detected: " ++ m ++ " in link: " ++ show l0
+              let usedMacros' = (S.singleton m) `S.union` usedMacros
+              go usedMacros' a $ macros M.! m
+            _ ->
+              go usedMacros (f a label)
+          
+findConnections :: Macros
+                -> LinkID
+                -> Link
+                -> [[Int]]
+findConnections macros x l0 = undefined -- (`runReader` (S.empty, [])) $ go l0
+  -- where go (Node Link{_link = l} _)
+  --         | l =*= x = return [views _2]
+  --         | True    = return []
+  --       go (Node (Macro m) _) = do
+  --         mUsed <- views _1
+  --         when (m `S.member` mUsed) $
+  --            error $ "Macro loop detected: " ++ m
+  --         _1 %= (S.union (S.singleton m))
+  --         go $ macros M.! m
+          
+
+kobenate :: (MonadVoretion m)
+         => (LinkID -> [Rule'])
+         -> Macros
+         -> V.Vector Rule'
+         -> m [NLPWord]
+kobenate mate macros allRules = tvoretion 0 mate macros =<< pickRandom allRules
+
+tvoretion :: (MonadVoretion m)
+          => Int
+          -> (LinkID -> [Rule'])
+          -> Macros
+          -> Rule'
+          -> m [NLPWord]
+tvoretion myIdx mate macros seed = do
+  seedWord <- pickRandom $ _lval' seed
+  let rval = _links' seed
+  -- rvalMate <- pickRandom $ mate rval
+  -- neighbors <- mapM pickRandom $ findConnections macros rval rvalMate
+  undefined
+  
 
 -- lvoretion :: (MonadVoretion m, MonadReader (Σ, Π Φ))
 --           => Config

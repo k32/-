@@ -22,8 +22,6 @@ executable Voretion
   main-is:             Vorec.hs
   
   build-depends:       base >=4.8 && <4.9
-                     , transformers >=0.4 && <0.5
-                     , parsec
                      , containers >= 0.5 && < 0.6
                      --, rosezipper
                      , mtl >= 2.2 && < 2.3
@@ -32,6 +30,7 @@ executable Voretion
                      , bytestring >= 0.10 && <0.11
                      , random
                      , lens
+                     , optparse-applicative
                      , deepseq
   
   -- Directories containing source files.
