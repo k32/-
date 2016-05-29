@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Voretion.Kobenation (
     trySort
-  , kobenate
+  , natalyze
   ) where
 
 import Control.Lens
@@ -14,10 +14,12 @@ import LinkGrammar.Process
 import Voretion.Config
 import Data.List
 import Debug.Trace
+import Data.Foldable
+import Data.Tree.Zipper
 import qualified Data.Vector as V
 import qualified Data.Map as M
 import qualified Data.Set as S
-import Data.Foldable
+import Voretion.Config
 
 data Ineq a = a :<: a | FreeVal a
 
@@ -79,60 +81,97 @@ trySort τ = fmap (nub . reverse) $ go [] [] τ
         case lti of
           [] -> go (i:acc) [] $ FreeVal j:others
           _  -> go acc (v:acc2) t
-
-linkFoldlPath :: (MonadReader [Int] m, Monad m)
-              => Macros
-              -> (a -> NodeType -> m a)
-              -> a
-              -> Link
-              -> m a
-linkFoldlPath macros f a0 l0 = (`runReaderT` []) $ go S.empty a0 l0
-  where go usedMacros a Node{rootLabel=label, subForest=sf} =
-          case label of
-            Macro m -> do
-              when (m `S.member` usedMacros) $
-                error $ "Macro loop detected: " ++ m ++ " in link: " ++ show l0
-              let usedMacros' = (S.singleton m) `S.union` usedMacros
-              go usedMacros' a $ macros M.! m
-            _ ->
-              go usedMacros (f a label)
           
 findConnections :: Macros
                 -> LinkID
                 -> Link
-                -> [[Int]]
-findConnections macros x l0 = undefined -- (`runReader` (S.empty, [])) $ go l0
-  -- where go (Node Link{_link = l} _)
-  --         | l =*= x = return [views _2]
-  --         | True    = return []
-  --       go (Node (Macro m) _) = do
-  --         mUsed <- views _1
-  --         when (m `S.member` mUsed) $
-  --            error $ "Macro loop detected: " ++ m
-  --         _1 %= (S.union (S.singleton m))
-  --         go $ macros M.! m
-          
-
-kobenate :: (MonadVoretion m)
-         => (LinkID -> [Rule'])
+                -> [RuleZipper]
+findConnections macros x = go S.empty . fromTree
+  where go usedMacros z =
+          case label z of
+            Macro m
+              | m `S.member` usedMacros ->
+                  error $ "Macro loop detected: " ++ m
+              | True ->
+                  let
+                    usedMacros' = (S.singleton m) `S.union` usedMacros
+                    tree' = macros M.! m
+                  in 
+                    go usedMacros' $ setTree tree' z
+            Link {_link=l}
+              | x =*= l -> [z]
+              | True    -> []
+            _ ->
+              (subForest $ tree z) >>= findConnections macros x
+              
+natalyze :: (MonadVoretion m)
+         => Config
+         -> (LinkID -> [Rule'])
          -> Macros
          -> V.Vector Rule'
          -> m [NLPWord]
-kobenate mate macros allRules = tvoretion 0 mate macros =<< pickRandom allRules
+natalyze cfg mate macros allRules = (`evalStateT` 0) $ tvoretion cfg mate macros =<< pickRandom allRules
 
-tvoretion :: (MonadVoretion m)
-          => Int
+tvoretion :: (MonadState Int m, MonadVoretion m)
+          => Config
           -> (LinkID -> [Rule'])
           -> Macros
           -> Rule'
           -> m [NLPWord]
-tvoretion myIdx mate macros seed = do
+tvoretion cfg mate macros seed = do
+  myId <- get
   seedWord <- pickRandom $ _lval' seed
   let rval = _links' seed
-  -- rvalMate <- pickRandom $ mate rval
+  rvalMate <- undefined
+  -- print rvalMate
   -- neighbors <- mapM pickRandom $ findConnections macros rval rvalMate
   undefined
-  
+
+type RuleZipper = TreePos Full NodeType
+
+data KobNode = KobNode Int LinkID NLPWord
+
+flatten :: (MonadVoretion m, MonadState Int m)
+        => Config
+        -> RuleZipper
+        -> m ([KobNode], [KobNode])
+flatten cfg z = uphill ([], []) z
+  where
+    nextId :: (MonadState Int m) => m Int
+    nextId = do
+      i <- get
+      put $ i+1
+      return 1
+      
+    uphill t x =
+      case label x of
+        LinkOr{} ->
+          case parent x of
+            Just x' -> uphill t x'
+            Nothing -> return t
+        LinkAnd{} ->
+          let
+            left = foldl1 (++) $ map downhill $ before z
+            right = foldl1 (++) $ map downhill $ after z
+            both = (reverse (fst left) ++ fst right, snd left ++ snd right)
+          in
+            case parent x of
+              Just x' -> uphill both x'
+              Nothing -> both
+
+    downhill l0@(Node label subforest) =
+      case label of
+        Optional _ -> do
+          p <- fork (_decay_optional cfg) True False
+          if p
+             then downhill $ head subforest
+             else return ([], [])
+        MultiConnector _ -> do
+          p <- fork (_decay_multi cfg) True False
+          if p
+             then (++) *** (++) $ (downhill $ head subforest) (downhill l0) -- TODO: optimize
+             else return ([], []) 
+        
 
 -- lvoretion :: (MonadVoretion m, MonadReader (Σ, Π Φ))
 --           => Config

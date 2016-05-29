@@ -84,4 +84,4 @@ main = do
         matingRules' = matingRules hRules index'
         rulesVec' = rulesVec hRules index'
         runVorec = noRandom 0.001
-    print $ runVorec $ kobenate matingRules' macros rulesVec'
+    print $ runVorec $ natalyze matingRules' macros rulesVec'

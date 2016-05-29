@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, RecordWildCards, FlexibleInstances
+{-# LANGUAGE GADTs, RecordWildCards, FlexibleInstances, UndecidableInstances
   #-}
 {-
 Yet another probabilistic monad.
@@ -20,6 +20,22 @@ import System.Random
 import qualified Data.Map as M
 import Control.Monad.Cont hiding (guard)
 import qualified Data.Vector as V (Vector, (!), length)
+
+-- import Control.Monad.Trans.Cont
+-- import Control.Monad.Trans.Error
+-- import Control.Monad.Trans.Except
+import Control.Monad.Trans.Identity
+-- import Control.Monad.Trans.List
+-- import Control.Monad.Trans.Maybe
+import Control.Monad.Trans.Reader
+-- import qualified Control.Monad.Trans.RWS.Lazy as LazyRWS (RWST, get, put, state)
+-- import qualified Control.Monad.Trans.RWS.Strict as StrictRWS (RWST, get, put, state)
+import qualified Control.Monad.Trans.State.Lazy as Lazy (StateT, get, put, state)
+import qualified Control.Monad.Trans.State.Strict as Strict (StateT, get, put, state)
+import Control.Monad.Trans.Writer.Lazy as Lazy
+import Control.Monad.Trans.Writer.Strict as Strict
+
+import Control.Monad.Trans.Class (lift)
 
 class Monad m => MonadVoretion m where
   -- | Bernoulli distribution. Returns either of the arguments with
@@ -65,6 +81,20 @@ class Monad m => MonadVoretion m where
                 if x
                   then go a m
                   else go m b
+
+instance MonadVoretion m => MonadVoretion (Lazy.StateT s m) where
+  fork p a b = lift $ fork p a b
+  guard = lift . guard
+
+instance MonadVoretion m => MonadVoretion (ReaderT s m) where
+  fork p a b = lift $ fork p a b
+  guard = lift . guard
+
+instance (MonadVoretion m, Monoid s) => MonadVoretion (Lazy.WriterT s m) where
+  fork p a b = lift $ fork p a b
+  guard = lift . guard
+
+{- TODO: Other instances -}
 
 -- | This type is used to keep the structure of computation, it
 -- doesn't do anything on its own.  One needs an "voretion engine" to
