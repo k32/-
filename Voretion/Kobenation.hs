@@ -82,27 +82,20 @@ trySort τ = fmap (nub . reverse) $ go [] [] τ
           [] -> go (i:acc) [] $ FreeVal j:others
           _  -> go acc (v:acc2) t
           
-findConnections :: Macros
-                -> LinkID
+findConnections :: LinkID
                 -> Link
                 -> [RuleZipper]
-findConnections macros x = go S.empty . fromTree
+findConnections x = go S.empty . fromTree
   where go usedMacros z =
           case label z of
-            Macro m
-              | m `S.member` usedMacros ->
-                  error $ "Macro loop detected: " ++ m
-              | True ->
-                  let
-                    usedMacros' = (S.singleton m) `S.union` usedMacros
-                    tree' = macros M.! m
-                  in 
-                    go usedMacros' $ setTree tree' z
             Link {_link=l}
               | x =*= l -> [z]
               | True    -> []
             _ ->
-              (subForest $ tree z) >>= findConnections macros x
+              undefined
+              -- (toList $ go usedMacros <$> firstChild z) ++ traverse usedMacros z
+
+        traverse um x = go um <$> next x
               
 natalyze :: (MonadVoretion m)
          => Config
@@ -110,7 +103,8 @@ natalyze :: (MonadVoretion m)
          -> Macros
          -> V.Vector Rule'
          -> m [NLPWord]
-natalyze cfg mate macros allRules = (`evalStateT` 0) $ tvoretion cfg mate macros =<< pickRandom allRules
+natalyze cfg mate macros allRules = (`evalStateT` 0) $ tvoretion cfg mate macros
+                                      =<< deMacrify macros [] <$> pickRandom allRules
 
 tvoretion :: (MonadState Int m, MonadVoretion m)
           => Config
@@ -172,44 +166,28 @@ flatten cfg z = uphill ([], []) z
              then (++) *** (++) $ (downhill $ head subforest) (downhill l0) -- TODO: optimize
              else return ([], []) 
         
+deMacrify :: Macros -> [MacroName] -> Rule' -> Rule'
+deMacrify m l (Rule' ł r) =
+    let
+        f :: [MacroName] -> Link -> State [MacroName] Link
+        f l₀ (Node α β) =
+          case α of
+            Macro n -> do
+                if n `elem` l₀
+                   then error $ "deMacrify: Loop detected, see macro " ++ n ++
+                                " in the rule " ++ show ł
+                   else return ()
+                modify (n:) -- TODO: duplicates
+                return $ m M.! n
+            _ -> do
+                c' <- mapM (f l₀) β
+                return Node {
+                             rootLabel = α
+                           , subForest = c'
+                           }
 
--- lvoretion :: (MonadVoretion m, MonadReader (Σ, Π Φ))
---           => Config
---           -> [Int]
---           -> Link
---           -> m ([LinkName], [LinkName])
--- lvoretion cfg{_cost_cost=ξ, _decay_optional=λ₁, _decay_multi=λ₂} idx (Node t c) =
---   case t of
---     Optional cost ->
---       case idx of
---         (_:idx') ->
---           -- idx /= [] means that certain element should be taken instead of a random one
---           lvoretion idx' $ head c
---         [] -> do
---           let p = max σ₁ (ξ * cost)
---           right <- lvoretion cfg [] $ head c
---           fork p ([], []) right
---           (σ, π) <- ask
---           liftMaybe $ insertRow σ 
---     LinkAnd _ -> do
---       let ρ (x, φ) = case idx of
---                        (α:idx') | φ == α -> (idx', x)
---                        _ -> ([], x)
---           l' = map ρ (zip c [0..])
---       (concat *** concat) <$> unzip <$> mapM (uncurry $ lvoretion cfg) l'
---     LinkOr _ ->
---       case idx of
---         [] -> do
---           c <- choice $ zip c $ map (\x -> 1/(1+getCost x)) c
---           lvoretion cfg [] c
---         (α:idx') ->
---           lvoretion cfg idx' $ c !! α
---     Link _ (LinkID n d)
---       | null idx ->
---           case d of
---             Plus -> return ([], [n])
---             Minus -> return ([n], [])
---       | True ->
---           return ([], [])
---     MultiConnector cost -> do
---       let 
+        (r', l₁) = (`runState` l) $ f l r
+    in
+      if r' == r
+         then (Rule' ł r')
+         else deMacrify m l₁ (Rule' ł r')

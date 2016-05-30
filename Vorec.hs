@@ -69,9 +69,9 @@ readRule handle offset = unsafePerformIO $ do
   decode <$> BL.hGetContents handle
 {-# NOINLINE readRule #-}
 
-humanize :: [NLPWord]
+humanyze :: [NLPWord]
          -> String
-humanize = unwords . map _nlpword
+humanyze = unwords . map _nlpword
 
 main = do
   conf@Config {
