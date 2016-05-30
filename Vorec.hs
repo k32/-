@@ -31,19 +31,25 @@ cliOptions =
     ruleset = strOption $ long "ruleset"
                        <> short 'r'
                        <> help "Path to the ruleset (without extension)"
+    epsilon = option auto $ long "epsilon"
+                         <> short 'e'
+                         <> help "Discard results with probability lesser than this"
+                         <> value 0.001
   in Config <$> dopt
             <*> dmul
             <*> ruleset
             <*> option auto (long "costcost" <> value 0)
+            <*> epsilon
 
 type RulesetIndex' = Ruleset (V.Vector Offset)
 
 -- | Returns list of rules mating with a given one
-matingRules :: Handle
+matingRules :: Macros
+            -> Handle
             -> RulesetIndex' 
             -> LinkID
             -> [Rule']
-matingRules handle index {- offsetMap -} rule =
+matingRules macros handle index {- offsetMap -} rule =
   let
     LinkID {_linkDirection = dir, _linkName = name} = rule
     
@@ -51,22 +57,24 @@ matingRules handle index {- offsetMap -} rule =
             Plus  -> _downlinks index
             Minus -> _uplinks index
     offsetMap = _ruleset index
-  in [ readRule handle (offsetMap V.! i)
+  in [ readRule macros handle (offsetMap V.! i)
      | (_, set) <- relaxedLookup (*<) True idx name
-     , i <- S.toList set]                 
+     , i <- S.toList set]
 
-rulesVec :: Handle
+rulesVec :: Macros
+         -> Handle
          -> RulesetIndex'
          -> V.Vector Rule'
-rulesVec h = V.map (readRule h) . _ruleset
+rulesVec macros h = V.map (readRule macros h) . _ruleset
 
 -- | Load rule from the ".rules" file. This operation is unsafe.
-readRule :: Handle
+readRule :: Macros
+         -> Handle
          -> Offset
          -> Rule'
-readRule handle offset = unsafePerformIO $ do
+readRule macros handle offset = unsafePerformIO $ do
   hSeek handle AbsoluteSeek offset
-  decode <$> BL.hGetContents handle
+  deMacrify macros <$> decode <$> BL.hGetContents handle
 {-# NOINLINE readRule #-}
 
 humanyze :: [NLPWord]
@@ -76,12 +84,13 @@ humanyze = unwords . map _nlpword
 main = do
   conf@Config {
       _pathToRuleset = file
+    , _epsilon = ε
     } <- execParser $ info (helper <*> cliOptions) fullDesc
   index <- (decodeFile $ file ++ ".index") :: IO RulesetIndex
   macros <- (decodeFile $ file ++ ".macros") :: IO Macros
   withFile (file ++ ".rules") ReadMode $ \hRules -> do
     let index' = index & ruleset %~ V.fromList
-        matingRules' = matingRules hRules index'
-        rulesVec' = rulesVec hRules index'
-        runVorec = noRandom 0.001
-    print $ runVorec $ natalyze matingRules' macros rulesVec'
+        matingRules' = matingRules macros hRules index'
+        rulesVec' = rulesVec macros hRules index'
+        runVorec = noRandom ε
+    print $ runVorec $ natalyze conf matingRules' rulesVec'

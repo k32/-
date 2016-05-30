@@ -5,11 +5,12 @@ module LinkGrammar.Process
     , Ruleset(..), ruleset, uplinks, downlinks
     , Rule'(..)
     , Macros
---    , withRuleset
     , RulesetIndex
     , Offset
     , (=*=)
     , (*<)
+    , flipLink
+    , deMacrify
     ) where
 
 import Control.Lens
@@ -58,7 +59,9 @@ instance (Binary a) => Binary (Ruleset a)
 
 type RulesetIndex = Ruleset [Offset]
 
-makeRuleset :: String -> [Rule] -> IO ()
+makeRuleset :: String
+            -> [Rule]
+            -> IO ()
 makeRuleset outfile rr =
     let
         ruleset0 = Ruleset {_ruleset=[], _uplinks=TT.empty, _downlinks=TT.empty}
@@ -103,8 +106,10 @@ makeRuleset outfile rr =
 --   ruleset <- (decodeFile $ filePath ++ ".idx") :: IO (Ruleset ())
 --   withFile (filePath ++ ".rules") ReadMode (\handle -> f $ ruleset{_ruleset=handle})
      
-(=*=) :: LinkID -> LinkID -> Bool
-(LinkID x _) =*= (LinkID y _) = f x y
+(=*=) :: LinkID
+      -> LinkID
+      -> Bool
+(LinkID x dx) =*= (LinkID y dy) = dx == dy && f x y
     where
      f [] _                   = True
      f _  []                  = True
@@ -112,12 +117,17 @@ makeRuleset outfile rr =
          | a == b             = f t₁ t₂
          | any (=='*') [a, b] = True
 
-(*<) :: Char -> Char -> Ordering
+(*<) :: Char
+     -> Char
+     -> Ordering
 _ *< '*' = EQ
 '*' *< _ = EQ
 a *< b  = compare a b
 
-
+flipLink :: LinkID
+         -> LinkID
+flipLink l@(LinkID _ Plus) = l{_linkDirection = Minus}
+flipLink l@(LinkID _ Minus) = l{_linkDirection = Plus}
 
 sortOut :: [Rule] -> (Macros, [Rule'])
 sortOut = foldl f (M.empty, [])
@@ -136,7 +146,9 @@ sortOut = foldl f (M.empty, [])
 
           split = partition isMacro
 
-deMacrify :: Macros -> Rule' -> Rule'
+deMacrify :: Macros
+          -> Rule'
+          -> Rule'
 deMacrify m rule@(Rule' ł r) =
     let
         f :: Link -> Reader (S.Set MacroName) Link

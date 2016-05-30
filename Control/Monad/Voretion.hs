@@ -12,6 +12,7 @@ module Control.Monad.Voretion (
        , MonadVoretion(..)
        , PickRandom(..)
        , noRandom
+       , ifR
        ) where
 
 import Data.Function
@@ -95,6 +96,18 @@ instance (MonadVoretion m, Monoid s) => MonadVoretion (Lazy.WriterT s m) where
   guard = lift . guard
 
 {- TODO: Other instances -}
+
+-- | Pick either execution path
+ifR :: (MonadVoretion m)
+    => Float
+    -> m a
+    -> m a
+    -> m a
+ifR b x y = do
+  r <- fork b True False
+  if r
+     then x
+     else y
 
 -- | This type is used to keep the structure of computation, it
 -- doesn't do anything on its own.  One needs an "voretion engine" to
