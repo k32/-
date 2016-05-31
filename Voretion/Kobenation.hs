@@ -60,10 +60,10 @@ lessThan = go ([], [])
 The below algorithm is based on a lemma:
 Set of relations Sₛ on set S is transitive ⇒ ∃ s∈S, {i:<:s|i∈S} = ∅
 -}
-trySort :: (Eq a)
+trySort :: (Eq a, Show a)
         => [Ineq a]
         -> Maybe [a]
-trySort τ = fmap (nub . reverse) $ go [] [] τ
+trySort τ = trace ("\n============\n"++show τ++"\n======") $ fmap (nub . reverse) $ go [] [] τ
   where
     go acc [] [] = Just acc
     go _   _  [] = Nothing
@@ -119,7 +119,7 @@ tvoretion cfg mate seed = do
     (before, after) <- (both . traverse) (tvoretion' cfg mate) τ
     let this = KobNode myId $ Right (seedWord, ([], []))
     ordered <- liftMaybe $ trySort $ order $ before ++ (this:after)
-    return []
+    trace (unlines $ map show ordered) $ return []
 
 order :: [KobNode]
       -> [Ineq KobNode]
