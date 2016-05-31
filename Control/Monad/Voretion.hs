@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, RecordWildCards, FlexibleInstances
+{-# LANGUAGE GADTs, RecordWildCards, FlexibleInstances, UndecidableInstances
   #-}
 {-
 Yet another probabilistic monad.
@@ -8,10 +8,11 @@ applications. Correctness and performance weren't tested nor guaranteed!
 -}
 module Control.Monad.Voretion (
          Sample
-       , choice
        , liftMaybe
        , MonadVoretion(..)
        , PickRandom(..)
+       , noRandom
+       , ifR
        ) where
 
 import Data.Function
@@ -19,6 +20,23 @@ import Data.List
 import System.Random
 import qualified Data.Map as M
 import Control.Monad.Cont hiding (guard)
+import qualified Data.Vector as V (Vector, (!), length)
+
+-- import Control.Monad.Trans.Cont
+-- import Control.Monad.Trans.Error
+-- import Control.Monad.Trans.Except
+import Control.Monad.Trans.Identity
+-- import Control.Monad.Trans.List
+-- import Control.Monad.Trans.Maybe
+import Control.Monad.Trans.Reader
+-- import qualified Control.Monad.Trans.RWS.Lazy as LazyRWS (RWST, get, put, state)
+-- import qualified Control.Monad.Trans.RWS.Strict as StrictRWS (RWST, get, put, state)
+import qualified Control.Monad.Trans.State.Lazy as Lazy (StateT, get, put, state)
+import qualified Control.Monad.Trans.State.Strict as Strict (StateT, get, put, state)
+import Control.Monad.Trans.Writer.Lazy as Lazy
+import Control.Monad.Trans.Writer.Strict as Strict
+
+import Control.Monad.Trans.Class (lift)
 
 class Monad m => MonadVoretion m where
   -- | Bernoulli distribution. Returns either of the arguments with
@@ -36,6 +54,60 @@ class Monad m => MonadVoretion m where
   getRandomR :: (Random a)
              => (a, a)  -- ^ Range 
              -> m a
+
+  -- TODO: Not very effective, rewrite me
+  -- ...Also there's summation of many floats, I smell problems with that
+  choice :: [(Float, a)]
+         -> m a
+  choice l = go (reverse $ scanl (\a b -> fst b + a) 0 l) $ reverse l 
+    where
+      go _ [(_,x)] = return x
+      go (pc:tp) ((p,x):t) = do
+        c <- fork (p/pc) True False
+        if c then
+          return x
+        else
+          go tp t
+
+  discreteUniform :: Int
+                  -> m Int
+  discreteUniform = go 0
+    where go a b
+            | a == b     = return a
+            | b - a == 1 = fork 0.5 a b
+            | True       = do
+                let m = a + (b - a) `div` 2
+                    bias = (fromIntegral $ m-a)/(fromIntegral $ b-a)
+                x <- fork bias True False
+                if x
+                  then go a m
+                  else go m b
+
+instance MonadVoretion m => MonadVoretion (Lazy.StateT s m) where
+  fork p a b = lift $ fork p a b
+  guard = lift . guard
+
+instance MonadVoretion m => MonadVoretion (ReaderT s m) where
+  fork p a b = lift $ fork p a b
+  guard = lift . guard
+
+instance (MonadVoretion m, Monoid s) => MonadVoretion (Lazy.WriterT s m) where
+  fork p a b = lift $ fork p a b
+  guard = lift . guard
+
+{- TODO: Other instances -}
+
+-- | Pick either execution path
+ifR :: (MonadVoretion m)
+    => Float
+    -> m a
+    -> m a
+    -> m a
+ifR b x y = do
+  r <- fork b True False
+  if r
+     then x
+     else y
 
 -- | This type is used to keep the structure of computation, it
 -- doesn't do anything on its own.  One needs an "voretion engine" to
@@ -97,6 +169,11 @@ instance Applicative (Sample m) where
       _next = \x -> (_next x) <*> a
     , ..
     }
+  Guard{..} <*> a = Guard {
+      _guarded = _guarded <*> a
+    , ..
+    }
+
 
 instance Monad (Sample m) where
   Val{_unVal=v} >>= f = f v
@@ -109,6 +186,12 @@ instance Monad (Sample m) where
       _next = \a -> _next a >>= f
     , ..
     }
+  Guard{..}     >>= f = Guard {
+      _guarded = _guarded >>= f
+    , ..
+    }
+
+  return = pure
 
 class Default a where
   deFault :: a
@@ -137,19 +220,6 @@ instance (Default m) => MonadVoretion (Sample m) where
     , _next = \a -> Val a
     }
 
--- TODO: Not very effective, rewrite me
--- ...Also there's summation of many floats, I smell problems with that
-choice :: MonadVoretion m => [(Float, a)] -> m a
-choice l = go (reverse $ scanl (\a b -> fst b + a) 0 l) $ reverse l 
-  where
-    go _ [(_,x)] = return x
-    go (pc:tp) ((p,x):t) = do
-      c <- fork (p/pc) True False
-      if c then
-        return x
-      else
-        go tp t
-
 liftMaybe :: MonadVoretion m => Maybe a -> m a
 liftMaybe (Just a) = guard True >> return a
 liftMaybe Nothing  = guard False >> return undefined
@@ -158,7 +228,10 @@ class PickRandom c where
   pickRandom :: (MonadVoretion m) => c a -> m a
 
 instance PickRandom [] where
-  pickRandom l = choice $ zip [1..] l
+  pickRandom l = (l !!) <$> (discreteUniform $ length l - 1)
+
+instance PickRandom V.Vector where
+  pickRandom v = (v V.!) <$> (discreteUniform $ V.length v - 1)
 
 {- | The simplest voretion engine which just evaluetes all possible
 voretions of a program.

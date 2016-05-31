@@ -22,17 +22,17 @@ executable Voretion
   main-is:             Vorec.hs
   
   build-depends:       base >=4.8 && <4.9
-                     , transformers >=0.4 && <0.5
-                     , parsec
                      , containers >= 0.5 && < 0.6
-                     --, rosezipper
+                     , transformers >= 0.4 && < 0.5
+                     , rosezipper
                      , mtl >= 2.2 && < 2.3
                      , vector >= 0.11 && <0.12
                      , binary >= 0.7 && <0.8
                      , bytestring >= 0.10 && <0.11
                      , random
                      , lens
-                     , sparse-lin-alg
+                     , optparse-applicative
+                     , deepseq
   
   -- Directories containing source files.
   -- hs-source-dirs:      
@@ -55,7 +55,7 @@ executable LinkGrammar
   
   -- Other library packages from which modules are imported.
   build-depends:       base >=4.8 && <4.9
-                     , cpphs >=1.19 && <1.20
+                     , optparse-applicative
                      , transformers >=0.4 && <0.5
                      , array >=0.5 && <0.6
                      , parsec
@@ -66,6 +66,7 @@ executable LinkGrammar
                      , binary >= 0.7 && <0.8
                      , bytestring >= 0.10 && <0.11
                      , lens
+                     , deepseq
   
   -- Directories containing source files.
   -- hs-source-dirs:      
@@ -75,4 +76,4 @@ executable LinkGrammar
   
   -- Base language which the package is written in.
   default-language:    Haskell2010
-
+  ghc-options: -prof -auto-all -caf-all -fforce-recomp  -fprof-auto-exported

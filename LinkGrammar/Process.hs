@@ -2,10 +2,15 @@
 module LinkGrammar.Process
     (
       makeRuleset
-    , Ruleset(..)
+    , Ruleset(..), ruleset, uplinks, downlinks
     , Rule'(..)
-    , saveRuleset
-    , loadRuleset
+    , Macros
+    , RulesetIndex
+    , Offset
+    , (=*=)
+    , (*<)
+    , flipLink
+    , deMacrify
     ) where
 
 import Control.Lens
@@ -13,17 +18,27 @@ import LinkGrammar.AST
 import Data.PrettyPrint
 import Data.Tree
 import Data.List
+import qualified Data.Set as S
 import Data.Traversable
 import Control.Arrow
-import Control.Monad.State
+import Control.Monad.State.Strict
 import Control.Monad.Reader    
 import qualified Data.Map.Strict as M
 import qualified Data.Vector as V
-import Data.Binary
+import qualified Data.Set as S
+import Data.Binary (encode, encodeFile, decodeFile, Binary)
+import Data.ByteString.Lazy (hPut)
 import Data.TernaryTree as TT
 import GHC.Generics
+import System.IO (Handle, hTell, withFile, IOMode(..))
+import Control.DeepSeq
+import Debug.Trace
 
-type RuleIndex = [(Int, [Int])]
+type Offset = Integer
+
+type RuleIndex = S.Set Int
+
+type Macros = M.Map MacroName Link
     
 data Rule' = Rule' {
       _lval' :: ![NLPWord]
@@ -31,56 +46,70 @@ data Rule' = Rule' {
     } deriving (Show, Eq, Generic)
 makeLenses ''Rule'
 instance Binary Rule'
+instance NFData Rule'
 
-data Ruleset = Ruleset {
-      _rules :: V.Vector Rule'
+data Ruleset r = Ruleset {
+      _ruleset :: r
     , _uplinks
-    , _downlinks :: TTree Char RuleIndex
-    }  deriving (Show)
+    , _downlinks :: {- (M.Map String RuleIndex) -}
+                    !(TTree Char RuleIndex)
+    }  deriving (Generic, Show)
 makeLenses ''Ruleset
+instance (Binary a) => Binary (Ruleset a)
 
-makeRuleset :: [Rule] -> Ruleset
-makeRuleset rr =
+type RulesetIndex = Ruleset [Offset]
+
+makeRuleset :: String
+            -> [Rule]
+            -> IO ()
+makeRuleset outfile rr =
     let
+        ruleset0 = Ruleset {_ruleset=[], _uplinks=TT.empty, _downlinks=TT.empty}
+        
         (macros, rules) = sortOut rr
+       
+        writeRule handle r = liftIO $ hPut handle $ encode r
 
-        rules' = V.fromList $ map (assocFlatten . costPropagate . deMacrify macros [])
-                 rules
+        dumpRule :: (MonadState RulesetIndex m, MonadIO m) => Handle -> (Int, Rule') -> m ()
+        dumpRule handle (myId, rule) = do
+          pos <- liftIO $ hTell handle
+          writeRule handle rule
+          ruleset %= (pos:)
+          (`runReaderT` []) $ go myId $ _links' rule
 
-        ruleset0 = Ruleset undefined TT.empty TT.empty
-        ruleset' = (`execState` ruleset0) $ V.imapM_ makeIndex rules'
-
-        makeIndex idx (Rule' _ y) = (`runReaderT` []) $ go idx y
-
-        go :: (MonadReader [Int] m, MonadState Ruleset m) =>
+        go :: (MonadReader [Int] m, MonadState RulesetIndex m) =>
               Int -> Link -> m ()
-        go idx Node {subForest = u, rootLabel = p}
+        go myId Node {subForest = u, rootLabel = p}
             = case p of
                 Link _ (LinkID li ld) -> do
                        path <- ask
                        let setter = case ld of
                                       Plus -> uplinks
                                       Minus -> downlinks
-                       setter %= TT.insertWith (++) li [(idx, reverse $ idx:path)]
+                       setter %= TT.insertWith (S.union) li (S.singleton myId)
+                Macro m ->
+                  go myId $ macros M.! m
                 _ ->
-                  mapM_ (\(s, n) -> local (n:) $ go idx s) $ zip u [0..]
+                  mapM_ (\(s, n) -> local (n:) $ go myId s) $ zip u [0..]
         
-    in
-      ruleset' {
-        _rules = rules'
-      }
+    in do
+      putStrLn "Dumping macros..."
+      encodeFile (outfile ++ ".macros") $ M.toList macros
+      putStrLn "Done."
+      withFile (outfile ++ ".rules") WriteMode $ \hRules -> do
+        putStrLn "Dumping rules..."
+        index <- (`execStateT` ruleset0) $ mapM (dumpRule hRules) $ zip [0..] rules
+        encodeFile (outfile ++ ".index") $ index & ruleset %~ reverse
 
-saveRuleset :: Ruleset -> FilePath -> IO ()
-saveRuleset Ruleset{_rules=r, _uplinks=u, _downlinks=d} fileName = encodeFile fileName (V.toList r, u, d)
-
-loadRuleset :: FilePath -> IO Ruleset
-loadRuleset filePath = do
-  (r, u, d) <- decodeFile filePath
-  return Ruleset {_rules=V.fromList r, _uplinks=u, _downlinks=d}
+-- withRuleset :: FilePath -> (Ruleset Handle -> IO a) -> IO a
+-- withRuleset filePath f = do
+--   ruleset <- (decodeFile $ filePath ++ ".idx") :: IO (Ruleset ())
+--   withFile (filePath ++ ".rules") ReadMode (\handle -> f $ ruleset{_ruleset=handle})
      
-
-(=*=) :: LinkID -> LinkID -> Bool
-(LinkID x _) =*= (LinkID y _) = f x y
+(=*=) :: LinkID
+      -> LinkID
+      -> Bool
+(LinkID x dx) =*= (LinkID y dy) = dx == dy && f x y
     where
      f [] _                   = True
      f _  []                  = True
@@ -88,7 +117,19 @@ loadRuleset filePath = do
          | a == b             = f t₁ t₂
          | any (=='*') [a, b] = True
 
-sortOut :: [Rule] -> (M.Map MacroName Link, [Rule'])
+(*<) :: Char
+     -> Char
+     -> Ordering
+_ *< '*' = EQ
+'*' *< _ = EQ
+a *< b  = compare a b
+
+flipLink :: LinkID
+         -> LinkID
+flipLink l@(LinkID _ Plus) = l{_linkDirection = Minus}
+flipLink l@(LinkID _ Minus) = l{_linkDirection = Plus}
+
+sortOut :: [Rule] -> (Macros, [Rule'])
 sortOut = foldl f (M.empty, [])
     where f (m, a) Rule {_lval = l, _links = r} =
               (
@@ -105,70 +146,33 @@ sortOut = foldl f (M.empty, [])
 
           split = partition isMacro
 
-deMacrify :: M.Map MacroName Link -> [MacroName] -> Rule' -> Rule'
-deMacrify m l (Rule' ł r) =
+deMacrify :: Macros
+          -> Rule'
+          -> Rule'
+deMacrify m rule@(Rule' ł r) =
     let
-        f :: [MacroName] -> Link -> State [MacroName] Link
-        f l₀ (Node α β) = case α of
-                            Macro n -> do
-                                if n `elem` l₀
-                                   then error $ "deMacrify: Loop detected, see macro " ++ n ++
-                                                " in the rule " ++ show ł
-                                   else return ()
-                                modify (n:) -- TODO: duplicates
-                                return $ m M.! n
-                            _ -> do
-                                c' <- mapM (f l₀) β
-                                return Node {
-                                             rootLabel = α
-                                           , subForest = c'
-                                           }
-        (r', l₁) = (`runState` l) $ f l r
+        f :: Link -> Reader (S.Set MacroName) Link
+        f (Node α β) =
+          case α of
+            Macro n
+              | n `M.member` m -> do
+                  l₀ <- ask
+                  if n `S.member` l₀
+                    then error $ "deMacrify: Loop detected, see macro <" ++ n ++
+                                 "> in rule \"" ++ pretty r ++ "\"\nUsed macros: " ++
+                                 unwords (S.toList l₀)
+                    else return ()
+                  local (n `S.insert`) $
+                    f $ m M.! n
+              | True ->
+                  error $ "Undefined macro <" ++ n ++ "> in rule \"" ++ pretty r ++ "\""
+            _ -> do
+              c' <- mapM f β
+              return $! Node {
+                  rootLabel = α
+                , subForest = c'
+                }
+
+        r' = (`runReader` S.empty) $ f r
     in
-      if r' == r
-         then (Rule' ł r')
-         else deMacrify m l₁ (Rule' ł r')
-
-costPropagate :: Rule' -> Rule'
-costPropagate (Rule' lval links) = Rule' lval $ go 0 links
-  where go n node@Node{subForest=s, rootLabel=l} =
-            case l of
-              Cost x ->
-                  go (n+x) $ head s
-              (Link cost linkID) ->
-                  Node {rootLabel=Link (cost + n) linkID, subForest=[]}
-              (LinkOr cost) ->
-                  Node {
-                     rootLabel = LinkOr $ cost+n
-                   , subForest = map (go n) s
-                   }
-              (LinkAnd cost) ->
-                  Node {
-                     rootLabel = LinkAnd $ cost+n
-                   , subForest = map (go n) s
-                   }
-              (Optional cost) ->
-                  Node {
-                     rootLabel = Optional $ cost+n
-                   , subForest = map (go n) s
-                   }
-              (MultiConnector cost) ->
-                  Node {
-                     rootLabel = MultiConnector $ cost+n
-                   , subForest = map (go n) s
-                   }
-
-
-{-
-a or (b or c) or d -> a or b or c or d
-
-Note: we don't flatten &, because it's not needed
--}               
-assocFlatten :: Rule' -> Rule'
-assocFlatten = id -- (Rule' lval links) =  Rule' lval $ go links
-  -- where go node@Node{subForest=s, rootLabel=l} =
-  --           case l of
-  --             LinkOr ->
-  --                 let
-
-  --                     s' = foldl f
+     Rule' ł r'
