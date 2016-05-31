@@ -116,13 +116,14 @@ makeRuleset outfile rr =
      f (a:t₁) (b:t₂)
          | a == b             = f t₁ t₂
          | any (=='*') [a, b] = True
+         | True               = False
 
 (*<) :: Char
      -> Char
      -> Ordering
-_ *< '*' = EQ
+_   *< '*' = EQ
 '*' *< _ = EQ
-a *< b  = compare a b
+a   *< b  = compare a b
 
 flipLink :: LinkID
          -> LinkID

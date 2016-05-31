@@ -14,6 +14,7 @@ import LinkGrammar.Process
 import Voretion.Config
 import Data.List
 import Debug.Trace
+import Data.PrettyPrint
 import Data.Foldable
 import Data.Tree.Zipper
 import qualified Data.Vector as V
@@ -22,6 +23,10 @@ import qualified Data.Set as S
 import Voretion.Config
 
 data Ineq a = a :<: a | FreeVal a
+  deriving (Show)
+
+instance (PrettyPrint a) => PrettyPrint (Ineq a) where
+  pretty (a :<: b) = "(" ++ pretty a ++ ") < (" ++ pretty b ++ ")"
 
 related :: (Eq a) => a -> [Ineq a] -> ([a], [a], [Ineq a])
 related = go ([], [], [])
@@ -101,21 +106,35 @@ natalyze :: (MonadVoretion m)
          -> m [NLPWord]
 natalyze cfg mate allRules =
   (`evalStateT` 0) $ tvoretion cfg mate =<< pickRandom allRules
-  -- (`evalStateT` 0) $ tvoretion cfg mate $ V.head allRules
 
 tvoretion :: (MonadState Int m, MonadVoretion m)
           => Config
           -> (LinkID -> [Rule'])
-          -> Maybe Int -- ^ Left boundary
-          -> Maybe Int -- ^ Right boundary
           -> Rule'
           -> m [NLPWord]
-tvoretion cfg mate b_l b_r seed = do
-  myId <- get
-  seedWord <- pickRandom $ _lval' seed {- TODO: Replace with simple random, we don't need to backtrack here! -}
-  seedRule <- downhill cfg $ _links' seed
-  let seedKob = KobNode myId $ Right (seedWord, seedRule)
-  return []
+tvoretion cfg mate seed = do
+    myId <- nextId
+    seedWord <- pickRandom $ _lval' seed {- TODO: Replace with simple random, we don't need to backtrack here! -}
+    τ <- downhill cfg $ _links' seed
+    (before, after) <- (both . traverse) (tvoretion' cfg mate) τ
+    let this = KobNode myId $ Right (seedWord, ([], []))
+    ordered <- liftMaybe $ trySort $ order $ before ++ (this:after)
+    return []
+
+order :: [KobNode]
+      -> [Ineq KobNode]
+order l = map (uncurry (:<:)) $ zip l $ drop 1 l
+
+tvoretion' :: (MonadState Int m, MonadVoretion m)
+           => Config
+           -> (LinkID -> [Rule'])
+           -> KobNode
+           -> m KobNode
+tvoretion' cfg mate (KobNode myId (Left link)) = do
+  r <- pickRandom $ mate link
+  w <- pickRandom $ _lval' r {- TODO: again, we don't need to backtrack here -}
+  kp <- kobenate cfg =<< pickRandom (findConnections link $ _links' r)
+  return $ KobNode myId $ Right (w, kp)
 
 type RuleZipper = TreePos Full NodeType
 
@@ -158,7 +177,7 @@ nextId :: (MonadState Int m) => m Int
 nextId = do
   i <- get
   put $ i+1
-  return 1
+  return i
 
 downhill' :: (MonadState Int m, MonadVoretion m)
           => Config

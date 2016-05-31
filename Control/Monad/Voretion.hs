@@ -228,7 +228,7 @@ class PickRandom c where
   pickRandom :: (MonadVoretion m) => c a -> m a
 
 instance PickRandom [] where
-  pickRandom l = (l !!) <$> (discreteUniform $ length l - 1)
+  pickRandom l = guard (not $ null l) >> (l !!) <$> (discreteUniform $ length l - 1)
 
 instance PickRandom V.Vector where
   pickRandom v = (v V.!) <$> (discreteUniform $ V.length v - 1)
