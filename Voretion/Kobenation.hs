@@ -17,74 +17,88 @@ import Debug.Trace
 import Data.PrettyPrint
 import Data.Foldable
 import Data.Tree.Zipper
+import Data.Nontransitive
 import qualified Data.Vector as V
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Voretion.Config
 
-data Ineq a = a :<: a | FreeVal a
+{-
+* Overview of the Topological Voretion Method:
+
+Kobenation is:
+
+    +-- Vector of NLP Words and "pointers"
+    |
+    |          +-- Star emphasizes position     +-- What original (simplified)
+    |          |   of the current NLP word      |   rule looks like
+    v          v                                v
+0: |W₁| => [2, *0, 1]  \                     %  W₁ : A- & B+
+1: |W₂| => [0, *1]      > Resolved rules     %  W₂ : B-
+2: |W₃| => [3, *2, 0]  /                     %  W₃ : C- & A+
+3: [C-]       <--- Remaining rules aren't resolved yet
+....
+
+Now we can translate it to set of inequalities:
+0: [2:<:0, 0:<:1]
+1: [0:<:1]
+2: [3:<:2, 2:<:0]
+...
+
+And simply concatenate the system:
+[2:<:0, 0:<:1, 0:<:1, 3:<:2, 2:<:0]
+
+
+Then try sorting it:
+[3,2,0,1]
+
+Backtrack if the system isn't feasible, otherwise resolve remaining rows.
+
+Stop if there is no unresolved rules.
+
+* Example of invalid grammar:
+
+%      _____
+%     /____ \
+%   _/____ \ \
+% /  |    \| |
+% 3  0     1 2
+
+
+0: [*0, 1, 2]      % 0 : A+ & B+;
+1: [3, 0, *1]      % 1 : C- & A-;
+2: [0, *2]         % 2 : B-;
+3: [3, 1]          % 3 : C+;
+
+Ineqs: [[0:<:1, 1:<:2], [3:<:0, 0:<:1], [0:<:2], [3:<:1]]
+
+-}
+
+
+type Pointer = Int
+
+type RuleZipper = TreePos Full NodeType
+
+data Kob =
+  Resolved {
+    _word :: NLPWord
+  , _order :: [Pointer]
+  } |
+  Unresolved LinkID
   deriving (Show)
 
-instance (PrettyPrint a) => PrettyPrint (Ineq a) where
-  pretty (a :<: b) = "(" ++ pretty a ++ ") < (" ++ pretty b ++ ")"
+type Kobenation = V.Vector Kob
 
-related :: (Eq a) => a -> [Ineq a] -> ([a], [a], [Ineq a])
-related = go ([], [], [])
-  where
-    go x _ [] = x
-    go (lt, mt, unrelated) x (a:t) =
-      case a of
-        FreeVal y | x == y -> go (lt, mt, unrelated) x t
-                  | True   -> go (lt, mt, a:unrelated) x t
-        y :<: z | x == y -> go (lt, z:mt, unrelated) x t
-                | x == z -> go (y:lt, mt, unrelated) x t
-                | True -> go (lt, mt, a:unrelated) x t
+data State =
+  State {
+    _currentId 
+  , _lastResolvedId :: Int
+  }
 
-lessThan :: (Eq a)
-         => a
-         -> [Ineq a]
-         -> ([a], [Ineq a])
-lessThan = go ([], [])
-  where
-    go x _ [] = x
-    go (lt, o) x (a:t) =
-      case a of
-        FreeVal y | x == y -> go (lt, o) x t
-                  | True   -> go (lt, a:o) x t
-        y :<: z | x == y -> go (lt, a:o) x t
-                | x == z -> go (y:lt, o) x t
-                | True -> go (lt, a:o) x t
-        
--- | Try to sort elements according to a set of possibly nontransitive inequalities 
-{-
-The below algorithm is based on a lemma:
-Set of relations Sₛ on set S is transitive ⇒ ∃ s∈S, {i:<:s|i∈S} = ∅
--}
-trySort :: (Eq a, Show a)
-        => [Ineq a]
-        -> Maybe [a]
-trySort τ = trace ("\n============\n"++show τ++"\n======") $ fmap (nub . reverse) $ go [] [] τ
-  where
-    go acc [] [] = Just acc
-    go _   _  [] = Nothing
-    go _   _  (a:<:b:_) | a == b = Nothing
-    go acc acc2 (v@(FreeVal i):t) =
-      let
-        (lti, others) = lessThan i $ acc2 ++ t
-      in
-        case lti of
-          [] -> go (i:acc) [] others
-          _  -> go acc (v:acc2) t
-    go acc acc2 (v@(i:<:j):t) =
-      let
-        (lti, others) = lessThan i $ acc2 ++ t
-      in
-        case lti of
-          [] -> go (i:acc) [] $ FreeVal j:others
-          _  -> go acc (v:acc2) t
-
-findConnections :: LinkID
-                -> Link
+{- | Given a rule, return list of zippers pointing to links mating with
+the given one -}
+findConnections :: LinkID -- ^ LinkID to match with
+                -> Link   -- ^ Rule
                 -> [RuleZipper]
 findConnections x = go . fromTree
   where go z =
@@ -104,25 +118,18 @@ natalyze :: (MonadVoretion m)
          -> (LinkID -> [Rule'])
          -> V.Vector Rule'
          -> m [NLPWord]
-natalyze cfg mate allRules =
-  (`evalStateT` 0) $ tvoretion cfg mate =<< pickRandom allRules
+natalyze cfg mate allRules = undefined
 
-tvoretion :: (MonadState Int m, MonadVoretion m)
+
+tvoretion :: (MonadState State m, MonadVoretion m)
           => Config
           -> (LinkID -> [Rule'])
-          -> Rule'
-          -> m [NLPWord]
-tvoretion cfg mate seed = do
-    myId <- nextId
-    seedWord <- pickRandom $ _lval' seed {- TODO: Replace with simple random, we don't need to backtrack here! -}
-    τ <- downhill cfg $ _links' seed
-    (before, after) <- (both . traverse) (tvoretion' cfg mate) τ
-    let this = KobNode myId $ Right (seedWord, ([], []))
-    ordered <- liftMaybe $ trySort $ order $ before ++ (this:after)
-    trace (unlines $ map show ordered) $ return []
+          -> Kobenation
+          -> m Kobenation
+tvoretion cfg mate kob = 
 
-order :: [KobNode]
-      -> [Ineq KobNode]
+order :: [a]
+      -> [Ineq a]
 order l = map (uncurry (:<:)) $ zip l $ drop 1 l
 
 tvoretion' :: (MonadState Int m, MonadVoretion m)
@@ -136,15 +143,8 @@ tvoretion' cfg mate (KobNode myId (Left link)) = do
   kp <- kobenate cfg =<< pickRandom (findConnections link $ _links' r)
   return $ KobNode myId $ Right (w, kp)
 
-type RuleZipper = TreePos Full NodeType
-
-data KobNode = KobNode Int (Either LinkID (NLPWord, KobPair))
-  deriving (Show)
-
 instance Eq KobNode where
   (KobNode a _) == (KobNode b _) = a == b
-
-type KobPair = ([KobNode], [KobNode])
 
 (\++/) :: KobPair -> KobPair -> KobPair
 (a1, b1) \++/ (a2, b2) = (a1 ++ a2, b1 ++ b2)  
@@ -175,8 +175,8 @@ kobenate cfg z = uphill ([], []) z
 
 nextId :: (MonadState Int m) => m Int
 nextId = do
-  i <- get
-  put $ i+1
+  s@State{_currentId=i} <- get
+  put $ i{_currentId=i+1}
   return i
 
 downhill' :: (MonadState Int m, MonadVoretion m)
