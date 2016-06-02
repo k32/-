@@ -17,6 +17,9 @@ import LinkGrammar.Process
 import Control.Lens
 import Control.Monad.Voretion
 
+
+import Debug.Trace
+
 cliOptions :: Parser Config
 cliOptions =
   let
@@ -77,9 +80,9 @@ readRule macros handle offset = unsafePerformIO $ do
   deMacrify macros <$> decode <$> BL.hGetContents handle
 {-# NOINLINE readRule #-}
 
-humanyze :: [NLPWord]
-         -> String
-humanyze = unwords . map _nlpword
+humanyze :: ([NLPWord], Float)
+         -> IO ()
+humanyze = putStrLn . unwords . map _nlpword . fst
 
 main = do
   conf@Config {
@@ -93,4 +96,4 @@ main = do
         matingRules' = matingRules macros hRules index'
         rulesVec' = rulesVec macros hRules index'
         runVorec = noRandom ε
-    print $ runVorec $ natalyze conf matingRules' rulesVec'
+    mapM_ humanyze $ runVorec $ natalyze conf matingRules' rulesVec'
