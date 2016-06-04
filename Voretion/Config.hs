@@ -1,5 +1,6 @@
 module Voretion.Config (
     Config(..)
+  , Engine(..)
   ) where
 
 data Config =
@@ -9,5 +10,9 @@ data Config =
   , _pathToRuleset :: String
   , _cost_cost :: Float
   , _epsilon :: Float
+  , _engine :: Engine
   }
   deriving Show
+
+data Engine = Deterministic | MonteCarlo
+  deriving (Show, Read)

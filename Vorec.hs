@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 import LinkGrammar.AST
 import LinkGrammar.Process
 import System.IO
@@ -16,7 +17,9 @@ import qualified Data.Set as S (toList)
 import LinkGrammar.Process
 import Control.Lens
 import Control.Monad.Voretion
-
+import System.Random (newStdGen, getStdRandom, random, randomR, StdGen)
+import Data.Char (toUpper)
+import Data.List (isInfixOf)
 
 import Debug.Trace
 
@@ -38,11 +41,15 @@ cliOptions =
                          <> short 'e'
                          <> help "Discard results with probability lesser than this"
                          <> value 0.001
+    engine = option auto $ long "engine"
+                       <> help "Choose execution engine (usedful for debugging)"
+                       <> value MonteCarlo
   in Config <$> dopt
             <*> dmul
             <*> ruleset
             <*> option auto (long "costcost" <> value 0)
             <*> epsilon
+            <*> engine
 
 type RulesetIndex' = Ruleset (V.Vector Offset)
 
@@ -80,14 +87,43 @@ readRule macros handle offset = unsafePerformIO $ do
   deMacrify macros <$> decode <$> BL.hGetContents handle
 {-# NOINLINE readRule #-}
 
-humanyze :: ([NLPWord], Float)
+debugOut :: ([NLPWord], Float)
+         -> String
+debugOut (str, p) = show p ++ "|" ++ unwords (map _nlpword str)
+
+psychoza :: (StdGen -> [NLPWord])
          -> IO ()
-humanyze = putStrLn . unwords . map _nlpword . fst
+psychoza f =
+  let
+    unUnderscore '_' = ' '
+    unUnderscore x   = x
+    
+    capitalyze = (\(a:l) -> toUpper a : l) . dropWhile (==' ')
+    
+    psychoza' a ('=':t) = return $ ' ':(a++t)
+    psychoza' a x | "MORPH-END" `isInfixOf` x = do
+      let stems = ["питуш", "ворец", "зожат", "перда", "пехапе "]
+      stem <- getStdRandom $ randomR (0, length stems - 1)
+      return $ a ++ " " ++ ((stems!!stem) ++ drop (length "MORPH-END" + 1) x)
+    psychoza' a t = return $ a++(' ':map unUnderscore t)
+    
+    humanyze t = do
+      putStr =<< capitalyze <$> foldM psychoza' [] t
+      putStr ". "
+      paragraph <- getStdRandom random :: IO Float
+      when (paragraph < 0.06) $
+        putChar '\n'
+      
+  in do
+    g₀ <- newStdGen
+    humanyze $ map _nlpword $ f g₀
+    psychoza f
 
 main = do
   conf@Config {
       _pathToRuleset = file
     , _epsilon = ε
+    , _engine = engine
     } <- execParser $ info (helper <*> cliOptions) fullDesc
   index <- (decodeFile $ file ++ ".index") :: IO RulesetIndex
   macros <- (decodeFile $ file ++ ".macros") :: IO Macros
@@ -95,5 +131,9 @@ main = do
     let index' = index & ruleset %~ V.fromList
         matingRules' = matingRules macros hRules index'
         rulesVec' = rulesVec macros hRules index'
-        runVorec = noRandom ε
-    mapM_ humanyze $ runVorec $ natalyze conf matingRules' rulesVec'
+        voretion = natalyze conf matingRules' rulesVec'
+    case engine of
+      Deterministic ->
+        mapM_ (putStrLn . debugOut) $ noRandom ε $ voretion
+      MonteCarlo -> do
+        psychoza $ stupidRandom voretion

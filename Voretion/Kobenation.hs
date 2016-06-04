@@ -7,8 +7,7 @@ module Voretion.Kobenation (
 import Control.Lens
 import Control.Arrow
 import Control.Monad.Voretion
-import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.State hiding (guard)
 import LinkGrammar.AST
 import LinkGrammar.Process
 import Voretion.Config
@@ -147,6 +146,7 @@ natalyze cfg mate allRules =
     myId <- nextId
     kob₀ <- addRows (V.singleton undefined) (myId, word) =<< downhill cfg seed
     (kob', order) <- go kob₀
+    guard $ not $ null order
     return $ map (_word . (kob' V.!)) order
 
 
@@ -160,8 +160,13 @@ getConstraints kob =
     resRows = mapMaybe resolved $ V.toList kob
 
     order1st l = map (uncurry (:<:)) $ zip l $ drop 1 l
+
+    order2nd l = map (\(a, b) -> Data.List.last a :<: head b) $ zip ll $ drop 1 ll
+      where ll = mapMaybe (\i -> resolved $ kob V.! i) l
+
+    ret = (resRows >>= order1st) --  ++ (resRows >>= order2nd)
   in
-    resRows >>= order1st
+    {- trace (show $ ret) $ -} ret
 
 addRows :: (MonadState MyState m)
         => Kobenation

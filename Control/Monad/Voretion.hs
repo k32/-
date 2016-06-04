@@ -12,6 +12,7 @@ module Control.Monad.Voretion (
        , MonadVoretion(..)
        , PickRandom(..)
        , noRandom
+       , stupidRandom
        , ifR
        ) where
 
@@ -21,6 +22,7 @@ import System.Random
 import qualified Data.Map as M
 import Control.Monad.Cont hiding (guard)
 import qualified Data.Vector as V (Vector, (!), length)
+import Control.Monad.Trans.Cont (shift, reset, runCont)
 
 -- import Control.Monad.Trans.Cont
 -- import Control.Monad.Trans.Error
@@ -131,7 +133,7 @@ data Sample m a where
     _metaInfo :: !m           -- ^ Opaque data, it may be used by the execution engine
   , _guarded :: Sample m a    -- ^ Next expression
   } -> Sample m a
-  -- | I don't know if this is going to work. It's likely to ruin the backtracking.
+  -- | For random valuse which shouldn't be backtracked
   Random :: {
     _metaInfo :: !m           -- ^ Opaque data, it may be used by the execution engine
   , _range :: !(r, r)         -- ^ Range of the random number
@@ -165,7 +167,7 @@ instance Applicative (Sample m) where
     , ..
     }
   Zero <*> _ = Zero
-  Random{..} <*> a = Random { -- Crazy-ass weirdo haskeller, why did you define instance Random (->)?!!
+  Random{..} <*> a = Random {
       _next = \x -> (_next x) <*> a
     , ..
     }
@@ -222,7 +224,7 @@ instance (Default m) => MonadVoretion (Sample m) where
 
 liftMaybe :: MonadVoretion m => Maybe a -> m a
 liftMaybe (Just a) = guard True >> return a
-liftMaybe Nothing  = guard False >> return undefined
+liftMaybe Nothing  = guard False >> return (error "liftMaybe: Check your voretion engine")
 
 class PickRandom c where
   pickRandom :: (MonadVoretion m) => c a -> m a
@@ -262,8 +264,29 @@ noRandom ε = go 1
 instance Default (Bool, Bool) where
   deFault = (False, False)
 
-maxProbabilityFirst :: (RandomGen g) => g -> Sample (Bool, Bool) b -> b
-maxProbabilityFirst rgen e = undefined -- TBD
+-- Instead of "proper" backtracking it just starts over from the very
+-- beginning
+stupidRandom :: (RandomGen g)
+             => Sample (Bool, Bool) b
+             -> g
+             -> b
+stupidRandom e g = (`runCont` either undefined id) $ reset $ loop (Left g) e
+  where
+    loop g e = go g e >>= (`loop` e)
+    
+    go (Left g) Zero = shift (\k -> return $ k $ Left g)
+    go _ Val{_unVal=v} = shift (\_ -> return $ Right v)
+    go g Guard{_guarded=e} = go g e
+    go g Random{} = error "Random is not implemented yet"
+    go (Left g) Fork{_bias=b, _next=f, _left=l, _right=r} =
+      let
+        (rn, g') = random g
+        
+        next = if rn < b
+                  then l
+                  else r
+      in
+        go (Left g') (f next)
 
 {- | Metropolis-Hastings voretion engine.
 
