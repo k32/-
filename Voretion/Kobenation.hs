@@ -157,14 +157,19 @@ getConstraints kob =
     resolved (Resolved _ x) = Just x
     resolved _ = Nothing
 
+    resolved' (Resolved _ x) = x
+    resolved' _ = error "resolved': Not resolved"
+    
     resRows = mapMaybe resolved $ V.toList kob
 
     order1st l = map (uncurry (:<:)) $ zip l $ drop 1 l
 
-    order2nd l = map (\(a, b) -> Data.List.last a :<: head b) $ zip ll $ drop 1 ll
-      where ll = mapMaybe (\i -> resolved $ kob V.! i) l
-
-    ret = (resRows >>= order1st) --  ++ (resRows >>= order2nd)
+    order2nd i = map (\(a, b) -> Data.List.last a :<: head b) $ zip ll $ drop 1 ll
+      where ll = mapMaybe f $ resolved' $ kob V.! i
+            
+            f j | i /= j = resolved $ kob V.! j
+                | True   = Just [i]
+    ret = (resRows >>= order1st) ++ ([0..length resRows - 1] >>= order2nd)
   in
     {- trace (show $ ret) $ -} ret
 

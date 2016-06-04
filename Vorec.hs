@@ -67,9 +67,10 @@ matingRules macros handle index {- offsetMap -} rule =
             Plus  -> _downlinks index
             Minus -> _uplinks index
     offsetMap = _ruleset index
-  in [ readRule macros handle (offsetMap V.! i)
-     | (_, set) <- relaxedLookup (*<) True idx name
-     , i <- S.toList set]
+    ret = [ readRule macros handle (offsetMap V.! i)
+          | (_, set) <- relaxedLookup (*<) True idx name
+          , i <- S.toList set]
+  in ret
 
 rulesVec :: Macros
          -> Handle
