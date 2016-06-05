@@ -7,6 +7,7 @@ import Text.Parsec
 import qualified Text.Parsec.Token as T
 import Data.List
 import Data.Either
+import Control.Lens
 
 import LinkGrammar.AST
 
@@ -47,8 +48,8 @@ linkGrammarDef = T.makeTokenParser $ T.LanguageDef {
                  , T.reservedNames = ["or"]
                  , T.reservedOpNames = ops
                  , T.caseSensitive = True
-                 , T.identStart = anyToken
-                 , T.identLetter = anyToken
+                 , T.identStart = alphaNum <|> oneOf "._="
+                 , T.identLetter = alphaNum <|> oneOf "._="
                  }
     where ops = ["@", "+", "-"]
 
@@ -72,7 +73,7 @@ rule = Rule <$> (many lval <* tok (char ':'))
 lval :: Monad m => ParsecT String u m LVal
 lval = choice [ try $ MacroDef <$> tok macroName
               , RuleDef  <$> tok nlpw
-              ]
+               ]
 
 link :: Monad m => ParsecT String u m Link
 link = (list $ LinkOr 0) <$> link' `sepBy` rW "or"
@@ -81,7 +82,7 @@ link = (list $ LinkOr 0) <$> link' `sepBy` rW "or"
           link' = (list $ LinkAnd 0) <$> link'' `sepBy` andLink
 
           link'' = choice [ try $ (single $ Cost 1)           <$> T.squares linkGrammarDef link
-                                                              <*  optional (T.float linkGrammarDef)
+                                                              <*  optional floating 
                           , try $ (single $ Optional 0)       <$> T.braces linkGrammarDef link
                           , try $ (none $ Link 0)             <$> (LinkID <$> linkName
                                                               <*> linkDirection)
@@ -100,6 +101,10 @@ link = (list $ LinkOr 0) <$> link' `sepBy` rW "or"
           list _ [a] = a
           list f  a  = Node f a
 
+          floating = optional (char '-') *>
+                     (tok $ many1 $ oneOf "0987654321.") *>
+                     pure 1 -- TODO: This is wrong, but we don't use cost anyway
+
 macroName :: Monad m => ParsecT String u m MacroName
 macroName = tok $ between (char '<') (char '>') $ many1 (alphaNum <|> oneOf ",-.")
 
@@ -108,14 +113,26 @@ linkDirection = choice [ rOp "+" *> pure Plus
                        , rOp "-" *> pure Minus
                        ]
 
+
 nlpw :: Monad m => ParsecT String u m NLPWord
-nlpw = tok $ NLPWord <$> nword <*> nclass
-    where nword = choice [ try $ T.stringLiteral linkGrammarDef
-                         , many1 $ oneOf "-=_," <|> alphaNum
-                         ]
-          nclass = choice [ try $ char '.' *> many1 (lower <|> digit <|> oneOf "=")
-                          , pure ""
-                          ]
+nlpw = choice [ try (NLPWord <$> (T.stringLiteral linkGrammarDef) <*> nclass)
+              , tok (f <$> (many1 $ oneOf "-=_.,/'`’>" <|> alphaNum))
+              ]
+  where
+    nclass = choice [ try $ char '.' *> many1 (lower <|> digit <|> oneOf "=")
+                    , pure ""
+                    ]
+    f = (uncurry $ NLPWord) . break (=='.') -- TODO This is wrong
+      
+-- nlpw :: Monad m => ParsecT String u m NLPWord
+-- nlpw = tok $ NLPWord <$> nword <*> nclass
+--     where nword = choice [ try $ T.stringLiteral linkGrammarDef
+--                          , many1 $ oneOf "-=_," <|> alphaNum
+--                          ]
+--           nclass = choice [ try $ char '.' *> many1 (lower <|> digit <|> oneOf "=.")
+--                           , pure ""
+--                           ]
 
 linkName :: Monad m => ParsecT String u m LinkName
-linkName = tok $ (++) <$> many1 upper <*> many (lower <|> digit <|> char '*')
+linkName = tok $ (++) <$> beginning <*> many (lower <|> digit <|> char '*')
+  where beginning = many1 upper

@@ -147,7 +147,7 @@ natalyze cfg mate allRules =
     kob₀ <- addRows (V.singleton undefined) (myId, word) =<< downhill cfg seed
     (kob', order) <- go kob₀
     guard $ not $ null order
-    return $ map (_word . (kob' V.!)) order
+    trace (unlines $ map show $ V.toList kob') $ return $ map (_word . (kob' V.!)) order
 
 
 getConstraints :: Kobenation
@@ -215,17 +215,18 @@ kobenate cfg z = uphill ([], []) z
         Nothing -> return t
 
     uphill t x =
-      case label x of
+      case label x of -- FIXME: Lookahead!
         MultiConnector{} -> do
           m <- downhill cfg (tree x)
           let t' = t \++/ m
           climb t' x 
         LinkOr{} ->
           climb t x
-        _ -> do
+        xx -> do
           i <- downhill' cfg $ before z
           j <- downhill' cfg $ after z
-          climb (i \++/ t \++/ j) x
+          trace (show xx) $
+            climb (i \++/ t \++/ j) x
 
 nextId :: (MonadState MyState m)
        => m Int

@@ -112,7 +112,7 @@ psychoza f =
       putStr =<< capitalyze <$> foldM psychoza' [] t
       putStr ". "
       paragraph <- getStdRandom random :: IO Float
-      when (paragraph < 0.06) $
+      when (paragraph < 1) $
         putChar '\n'
       
   in do
