@@ -11,6 +11,8 @@ data Config =
   , _cost_cost :: Float
   , _epsilon :: Float
   , _engine :: Engine
+  , _paragraph :: Float
+  , _debug :: Bool
   }
   deriving Show
 

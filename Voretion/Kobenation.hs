@@ -47,7 +47,8 @@ Now we can translate Kobenation to a set of 1st order constraints:
 2: [3:<:2, 2:<:0]
 ...
 
-2nd order constraints are needed to prevent crossing links like following:
+2nd order constraints are needed to prevent crossing links like on the
+below picture:
 
 %      _____
 %     /____ \
@@ -64,13 +65,17 @@ Now we can translate Kobenation to a set of 1st order constraints:
 [[0:<:1, 1:<:2], [3:<:0, 0:<:1], [0:<:2], [3:<:1]] are sortable:
 [3, 0, 1, 2]
 
-TODO: describe 2nd order constraints
+2nd order constraints are found according to the following algorithm:
+let A₀ is an element of a kobenation K. For all pointers in A₀ except
+the starred one, lookup the row in K, say A_n, take the first and the
+last elements from X, then make sure last(A_n) :<: first(A_{n+1})
 
 And simply concatenate all 1st and 2nd order constraints:
 [2:<:0, 0:<:1, 0:<:1, 3:<:2, 2:<:0, ...]
 
 
-Backtrack if the system isn't feasible, otherwise resolve remaining rows.
+Backtrack if the system isn't feasible, otherwise resolve remaining
+rows.
 
 Stop if there are no unresolved rules.
 
@@ -128,7 +133,7 @@ natalyze cfg mate allRules =
                _currentId = 0
              , _lastResolvedId = 0
              }
-      
+
     go :: (MonadVoretion m, MonadState MyState m)
        => Kobenation
        -> m (Kobenation, [Pointer])
@@ -139,7 +144,11 @@ natalyze cfg mate allRules =
          then return (kob, sorted)
          else do
            go =<< tvoretion cfg mate kob
-        
+
+    dbg kob x | _debug cfg = trace (unlines $ map f $ V.toList kob) $ return x
+              | True       = return x
+       where f Resolved{_word=NLPWord{_nlpword=w}, _order=o} = "KOBENATION: " ++ w ++ " " ++ show o
+             
   in (`evalStateT` state₀) $ do
     Rule' {_lval'=words, _links'=seed} <- pickRandom allRules
     word <- pickRandom words {- TODO: We don't need to backtrack here! #-}
@@ -147,7 +156,7 @@ natalyze cfg mate allRules =
     kob₀ <- addRows (V.singleton undefined) (myId, word) =<< downhill cfg seed
     (kob', order) <- go kob₀
     guard $ not $ null order
-    trace (unlines $ map show $ V.toList kob') $ return $ map (_word . (kob' V.!)) order
+    dbg kob' $ map (_word . (kob' V.!)) order
 
 
 getConstraints :: Kobenation
@@ -214,19 +223,22 @@ kobenate cfg z = uphill ([], []) z
         Just x' -> uphill t x'
         Nothing -> return t
 
-    uphill t x =
-      case label x of -- FIXME: Lookahead!
-        MultiConnector{} -> do
-          m <- downhill cfg (tree x)
-          let t' = t \++/ m
-          climb t' x 
-        LinkOr{} ->
-          climb t x
-        xx -> do
-          i <- downhill' cfg $ before z
-          j <- downhill' cfg $ after z
-          trace (show xx) $
-            climb (i \++/ t \++/ j) x
+    uphill t x = (if _debug cfg
+                    then trace ("UPHILL: (" ++ show t ++ ") "  ++ show (label x))
+                    else id) $
+      case label <$> parent x of
+        Just (LinkAnd{}) -> do
+          i <- downhill' cfg $ before x
+          j <- downhill' cfg $ after x
+          climb (i \++/ t \++/ j) x
+        _ ->
+          case label x of
+            MultiConnector{} -> do
+              m <- downhill cfg (tree x)
+              let t' = t \++/ m
+              climb t' x
+            _ ->
+              climb t x
 
 nextId :: (MonadState MyState m)
        => m Int

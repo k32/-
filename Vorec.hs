@@ -44,13 +44,20 @@ cliOptions =
     engine = option auto $ long "engine"
                        <> help "Choose execution engine (usedful for debugging)"
                        <> value MonteCarlo
+    paragraph = option auto $ long "paragraph"
+                           <> short 'p'
+                           <> help "Probability of new paragraph"
+                           <> value 0.1
+    debug = switch (long "debug" <> help "Enable some debug printouts")
   in Config <$> dopt
             <*> dmul
             <*> ruleset
             <*> option auto (long "costcost" <> value 0)
             <*> epsilon
             <*> engine
-
+            <*> paragraph
+            <*> debug
+            
 type RulesetIndex' = Ruleset (V.Vector Offset)
 
 -- | Returns list of rules mating with a given one
@@ -92,9 +99,10 @@ debugOut :: ([NLPWord], Float)
          -> String
 debugOut (str, p) = show p ++ "|" ++ unwords (map _nlpword str)
 
-psychoza :: (StdGen -> [NLPWord])
+psychoza :: Config
+         -> (StdGen -> [NLPWord])
          -> IO ()
-psychoza f =
+psychoza cfg f =
   let
     unUnderscore '_' = ' '
     unUnderscore x   = x
@@ -103,7 +111,7 @@ psychoza f =
     
     psychoza' a ('=':t) = return $ ' ':(a++t)
     psychoza' a x | "MORPH-END" `isInfixOf` x = do
-      let stems = ["питуш", "ворец", "зожат", "перда", "пехапе "]
+      let stems = ["кантор", "ворец", "зожат", "лямбда", "тьюринг", "Исаев", "асимптот", "бесконечн", "останов", "терминир "]
       stem <- getStdRandom $ randomR (0, length stems - 1)
       return $ a ++ " " ++ ((stems!!stem) ++ drop (length "MORPH-END" + 1) x)
     psychoza' a t = return $ a++(' ':map unUnderscore t)
@@ -112,13 +120,13 @@ psychoza f =
       putStr =<< capitalyze <$> foldM psychoza' [] t
       putStr ". "
       paragraph <- getStdRandom random :: IO Float
-      when (paragraph < 1) $
+      when (paragraph < _paragraph cfg) $
         putChar '\n'
       
   in do
     g₀ <- newStdGen
     humanyze $ map _nlpword $ f g₀
-    psychoza f
+    psychoza cfg f
 
 main = do
   conf@Config {
@@ -137,4 +145,4 @@ main = do
       Deterministic ->
         mapM_ (putStrLn . debugOut) $ noRandom ε $ voretion
       MonteCarlo -> do
-        psychoza $ stupidRandom voretion
+        psychoza conf $ stupidRandom voretion
