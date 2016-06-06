@@ -145,4 +145,4 @@ main = do
       Deterministic ->
         mapM_ (putStrLn . debugOut) $ noRandom ε $ voretion
       MonteCarlo -> do
-        psychoza conf $ stupidRandom voretion
+        psychoza conf $ fst . stupidRandom voretion

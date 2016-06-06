@@ -1,10 +1,11 @@
-{-# LANGUAGE GADTs, RecordWildCards, FlexibleInstances, UndecidableInstances
-  #-}
+{-# LANGUAGE GADTs, RecordWildCards, FlexibleInstances,
+UndecidableInstances, FlexibleContexts #-}
 {-
 Yet another probabilistic monad.
 
 Disclaimer: by no means it's intended for serious
-applications. Correctness and performance weren't tested nor guaranteed!
+applications. Correctness and performance weren't tested nor
+guaranteed!
 -}
 module Control.Monad.Voretion (
          Sample
@@ -20,9 +21,8 @@ import Data.Function
 import Data.List
 import System.Random
 import qualified Data.Map as M
-import Control.Monad.Cont hiding (guard)
 import qualified Data.Vector as V (Vector, (!), length)
-import Control.Monad.Trans.Cont (shift, reset, runCont)
+import Control.Monad.Trans.Cont (shift, reset, evalCont, runCont, callCC, Cont)
 
 -- import Control.Monad.Trans.Cont
 -- import Control.Monad.Trans.Error
@@ -39,6 +39,8 @@ import Control.Monad.Trans.Writer.Lazy as Lazy
 import Control.Monad.Trans.Writer.Strict as Strict
 
 import Control.Monad.Trans.Class (lift)
+
+import Debug.Trace
 
 class Monad m => MonadVoretion m where
   -- | Bernoulli distribution. Returns either of the arguments with
@@ -264,30 +266,41 @@ noRandom ε = go 1
 instance Default (Bool, Bool) where
   deFault = (False, False)
 
--- Instead of "proper" backtracking it just starts over from the very
--- beginning
-stupidRandom :: (RandomGen g)
-             => Sample (Bool, Bool) b
-             -> g
-             -> b
-stupidRandom e g = (`runCont` either undefined id) $ reset $ loop (Left g) e
-  where
-    loop g e = go g e >>= (`loop` e)
-    
-    go (Left g) Zero = shift (\k -> return $ k $ Left g)
-    go _ Val{_unVal=v} = shift (\_ -> return $ Right v)
-    go g Guard{_guarded=e} = go g e
-    go g Random{} = error "Random is not implemented yet"
-    go (Left g) Fork{_bias=b, _next=f, _left=l, _right=r} =
-      let
-        (rn, g') = random g
-        
-        next = if rn < b
-                  then l
-                  else r
-      in
-        go (Left g') (f next)
+type Temp b g = Either g (b, g)
 
+stupidRandom :: (RandomGen g)
+             => Sample () b
+             -> g
+             -> (b, g)
+stupidRandom e g = either undefined id $ evalCont $ callCC (\done -> loop done (Left g))
+  where
+    loop done g = (go done 1 g e) >>= loop done
+
+    go done p (Left g) v =
+      case v of
+        Zero ->
+          shift (\k -> return $ k $ Left g)
+        Val{_unVal=v} ->
+          done $ Right (v, g)
+        Guard{_guarded=e} ->
+          go done p (Left g) e -- TODO: I want to backtrack here
+        Random{} ->
+          error "Random is not implemented yet"
+        Fork{_bias=b, _next=f, _left=l, _right=r} ->
+          let
+            (rn, g') = random g
+            
+            (next, p', fail) = if rn < b
+                                 then (l, p*b, r)
+                                 else (r, p*(1-b), l)
+          in do
+            ffff <- (reset $ go done p' (Left g') $ f next)
+            let Left g'' = trace (show ffff) ffff
+            let (p_f, g''') = random g''
+            if p_f > p'
+               then go done (1-p') (Left g''') $ f fail
+               else shift (\k -> return $ k $ Left g''')
+              
 {- | Metropolis-Hastings voretion engine.
 
 Limitations:
