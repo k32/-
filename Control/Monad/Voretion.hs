@@ -43,7 +43,7 @@ import Control.Monad.Trans.Class (lift)
 import Debug.Trace
 
 class Monad m => MonadVoretion m where
-  -- | Bernoulli distribution. Returns either of the arguments with
+  -- | Bernoulli distribution. Returns either the arguments with
   -- certain probability
   fork :: Float  -- ^ Probability of the first value
        -> a      -- ^ First value
@@ -274,32 +274,33 @@ stupidRandom :: (RandomGen g)
              -> (b, g)
 stupidRandom e g = either undefined id $ evalCont $ callCC (\done -> loop done (Left g))
   where
-    loop done g = (go done 1 g e) >>= loop done
+    loop done g = go done return 1 e g >>= loop done
 
-    go done p (Left g) v =
+    go done backtrack p v (Left g) =
       case v of
         Zero ->
-          shift (\k -> return $ k $ Left g)
+          backtrack $ Left g
         Val{_unVal=v} ->
           done $ Right (v, g)
         Guard{_guarded=e} ->
-          go done p (Left g) e -- TODO: I want to backtrack here
+          go done backtrack p e (Left g) -- TODO: I want to backtrack here
         Random{} ->
           error "Random is not implemented yet"
         Fork{_bias=b, _next=f, _left=l, _right=r} ->
           let
             (rn, g') = random g
             
-            (next, p', fail) = if rn < b
-                                 then (l, p*b, r)
-                                 else (r, p*(1-b), l)
+            (next, p', sibling) = if rn < b
+                                    then (l, p*b, r)
+                                    else (r, p*(1-b), l)
+
+            (p_f, g'') = random g'
+
+            fail = if p_f > p'
+                      then backtrack
+                      else return
           in do
-            ffff <- (reset $ go done p' (Left g') $ f next)
-            let Left g'' = trace (show ffff) ffff
-            let (p_f, g''') = random g''
-            if p_f > p'
-               then go done (1-p') (Left g''') $ f fail
-               else shift (\k -> return $ k $ Left g''')
+            go done fail (p*p') (f next) (Left g'') >>= go done backtrack (p*(1-p')) (f sibling)
               
 {- | Metropolis-Hastings voretion engine.
 
