@@ -68,7 +68,7 @@ below picture:
 2nd order constraints are found according to the following algorithm:
 let A₀ is an element of a kobenation K. For all pointers in A₀ except
 the starred one, lookup the row in K, say A_n, take the first and the
-last elements from X, then make sure last(A_n) :<: first(A_{n+1})
+last elements from A_n, then make sure last(A_n) :<: first(A_{n+1})
 
 And simply concatenate all 1st and 2nd order constraints:
 [2:<:0, 0:<:1, 0:<:1, 3:<:2, 2:<:0, ...]
