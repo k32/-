@@ -15,6 +15,8 @@ module Control.Monad.Voretion (
        , noRandom
        , stupidRandom
        , ifR
+       , guardCry
+       , liftMaybeCry
        ) where
 
 import Data.Function
@@ -90,16 +92,36 @@ class Monad m => MonadVoretion m where
 instance MonadVoretion m => MonadVoretion (Lazy.StateT s m) where
   fork p a b = lift $ fork p a b
   guard = lift . guard
+  getRandomR = lift . getRandomR
 
 instance MonadVoretion m => MonadVoretion (ReaderT s m) where
   fork p a b = lift $ fork p a b
   guard = lift . guard
+  getRandomR = lift . getRandomR
 
 instance (MonadVoretion m, Monoid s) => MonadVoretion (Lazy.WriterT s m) where
   fork p a b = lift $ fork p a b
   guard = lift . guard
+  getRandomR = lift . getRandomR
 
 {- TODO: Other instances -}
+
+
+guardCry :: (MonadVoretion m)
+         => Bool
+         -> String
+         -> Bool
+         -> m ()
+guardCry True str False = trace str $ guard False
+guardCry _ _ a = guard a
+
+liftMaybeCry :: (MonadVoretion m)
+             => Bool
+             -> String
+             -> Maybe a
+             -> m a
+liftMaybeCry True str Nothing = trace str $ liftMaybe Nothing
+liftMaybeCry _ _ a = liftMaybe a
 
 -- | Pick either execution path
 ifR :: (MonadVoretion m)
@@ -136,7 +158,7 @@ data Sample m a where
   , _guarded :: Sample m a    -- ^ Next expression
   } -> Sample m a
   -- | For random valuse which shouldn't be backtracked
-  Random :: {
+  Random :: (Random r) => {
     _metaInfo :: !m           -- ^ Opaque data, it may be used by the execution engine
   , _range :: !(r, r)         -- ^ Range of the random number
   , _next :: r -> Sample m a  -- ^ Next expression
@@ -226,16 +248,23 @@ instance (Default m) => MonadVoretion (Sample m) where
 
 liftMaybe :: MonadVoretion m => Maybe a -> m a
 liftMaybe (Just a) = guard True >> return a
-liftMaybe Nothing  = guard False >> return (error "liftMaybe: Check your voretion engine")
+liftMaybe Nothing  = guard False >> return (error "liftMaybe: Check spark plugs in your voretion engine")
 
 class PickRandom c where
-  pickRandom :: (MonadVoretion m) => c a -> m a
+  pickRandom :: (MonadVoretion m)
+             => Bool -- ^ Backtrack on failure?
+             -> c a  -- ^ Container to pick element from
+             -> m a
 
 instance PickRandom [] where
-  pickRandom l = guard (not $ null l) >> (l !!) <$> (discreteUniform $ length l - 1)
+  pickRandom b l = guardCry False "FAIL: nothing to pick from" (not $ null l) >> (l !!) <$> (v $ length l - 1)
+    where v | b = discreteUniform
+            | True = \x -> getRandomR (0, x)
 
 instance PickRandom V.Vector where
-  pickRandom v = (v V.!) <$> (discreteUniform $ V.length v - 1)
+  pickRandom b l = (l V.!) <$> (v $ V.length l - 1)
+    where v | b = discreteUniform
+            | True = \x -> getRandomR (0, x)
 
 {- | The simplest voretion engine which just evaluetes all possible
 voretions of a program.
@@ -272,36 +301,40 @@ stupidRandom :: (RandomGen g)
              => Sample () b
              -> g
              -> (b, g)
-stupidRandom e g = either undefined id $ evalCont $ callCC (\done -> loop done (Left g))
+stupidRandom e g = evalCont $ callCC (\done -> loop done g)
   where
-    loop done g = go done return 1 e g >>= loop done
+    loop done g = callCC (\backtrack -> go done backtrack 1 e g) >>= loop done
 
-    go done backtrack p v (Left g) =
+    go done backtrack p v g = 
       case v of
         Zero ->
-          backtrack $ Left g
+          backtrack g
         Val{_unVal=v} ->
-          done $ Right (v, g)
+          done (v, g)
         Guard{_guarded=e} ->
-          go done backtrack p e (Left g) -- TODO: I want to backtrack here
-        Random{} ->
-          error "Random is not implemented yet"
+          let
+            (p_x, g') = random g
+
+            fail = if p_x > (1::Float) -- TODO: This is wrong! Theory is coming soon
+                     then return
+                     else backtrack
+          in
+            go done fail p e g' >>= (go done backtrack p e)
+        Random{_range=r, _next=n} ->
+          let
+            (v, g') = randomR r g
+          in
+            go done backtrack p (n v) g'
         Fork{_bias=b, _next=f, _left=l, _right=r} ->
           let
             (rn, g') = random g
-            
-            (next, p', sibling) = if rn < b
-                                    then (l, p*b, r)
-                                    else (r, p*(1-b), l)
 
-            (p_f, g'') = random g'
-
-            fail = if p_f > p'
-                      then backtrack
-                      else return
+            (next, p') = if rn < b
+                           then (l, b)
+                           else (r, (1-b))
           in do
-            go done fail (p*p') (f next) (Left g'') >>= go done backtrack (p*(1-p')) (f sibling)
-              
+            go done backtrack (p*p') (f next) g'
+
 {- | Metropolis-Hastings voretion engine.
 
 Limitations:

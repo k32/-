@@ -1,0 +1,566 @@
+%%
+%% Based on Link Grammar for Russian,
+%%
+%% Copyright (c) 2004, 2012 Sergey Protasov 
+%% http://sz.ru/parser/
+%% svp dot zuzino.net.ru, svp dot tj.ru
+%%
+
+
+<наречие-куда>: ({Xc-} & Ed-) or ({XIc+} & EId+) or ({Xt- & S-});
+<наречие-откуда>: ({Xc-} & Es-) or ({XIc+} & EIs+) or Mp- or ({Xt-} & S-);
+<наречие-где>: ({Xc-} & Ew-) or ({XIc+} & EIw+) or ({Xt-} & S-);
+<наречие-когда>: ({Xc-} & Et-) or ({Xc+} & EIt+);
+<наречие-как>: ({Xc-} & Ek-) or ({XIc+} & EIk+);
+<наречие-почему>: ({Xc-} & Ep-) or ({XIc+} & EIp+);
+
+<дополнение-о-чем>: Mp- or MVap- or MVIap+;
+<дополнение-без>: Mp- or <наречие-как>;
+<кроме>: ((Xc- & Mp-) or <наречие-как>) & {XIc+};
+
+"!" : {@XIc-} &  Xp- & RW+ ;
+"?" : ( {@XIc-} &  Xp- & RW+) or (Xq-) ;
+"," : Xc+ or @XIc- or [[<точка>]];
+"." : <точка> or Xp-;
+
+LEFT-WALL: W+ & (Xp+ or RW+);
+RIGHT-WALL: {Xc-} & RW-;
+
+<name-перечисление-сущ>: J- or ((Sp3+ or SIp3-) & Wd-) or ({Xt-} & S-) or Mg-;
+<name-макро-перечисление>: NX+
+        or (Xc- & NX- & (NX+ or [<name-перечисление-сущ>]))
+        or (Xi- & NX- & <name-перечисление-сущ>);
+
+%% СУЩЕСТВИТЕЛЬНЫЕ
+<сущ-i>: Ji- or (Sp+ or SIp- or [[Wd-]]) or ((Xt- or [[]]) & S-) or Nip-;
+<макро-сущ-i> : NXi+ 
+	or (Xc- & NXi- & (NXi+ or [[[[{Api-} & {AIpi+} & {Ppi+} & {PIpi-} & <сущ-i>]]]]))
+	or (Xi- & NXi- & {Api-} & {AIpi+} & {Ppi+} & {PIpi-} & <сущ-i>);
+<сущ-g>: Jg- or [Mg-] or [[MVag- or MVIag+]] or Ngp-;
+<макро-сущ-g> : NXg+
+	or (Xc- & NXg- & (NXg+ or [[[[{Apg-} & {AIpg+} & {Ppg+} & {PIpg-} & <сущ-g>]]]]))
+	or (Xi- & NXg- & {Apg-} & {AIpg+} & {Ppg+} & {PIpg-} & <сущ-g>);
+<сущ-d>: Jd- or [[MVad-]] or [[MVIad+]] or Ndp-;
+<макро-сущ-d> : NXd+
+	or (Xc- & NXd- & (NXd+ or [[[[{Apd-} & {AIpd+} & {Ppd+} & {PIpd-} & <сущ-d>]]]]))
+	or (Xi- & NXd- & {Apd-} & {AIpd+} & {Ppd+} & {PIpd-} & <сущ-d>);
+<сущ-v>: Jv- or [MVv-] or [MVIv+] or Nvp-;
+<макро-сущ-v> : NXv+
+	or (Xc- & NXv- & (NXv+ or [[[[{Apv-} & {AIpv+} & {Ppv+} & {PIpv-} & <сущ-v>]]]]))
+	or (Xi- & NXv- & {Apv-} & {AIpv+} & {Ppv+} & {PIpv-} & <сущ-v>);
+<сущ-t>: Jt- or AP- or [[MVat- or MVIat+]] or Ntp-;
+<макро-сущ-t> : NXt+
+	or (Xc- & NXt- & (NXt+ or [[[[{Apt-} & {AIpt+} & {Ppt+} & {PIpt-} & <сущ-t>]]]]))
+	or (Xi- & NXt- & {Apt-} & {AIpt+} & {Ppt+} & {PIpt-} & <сущ-t>);
+<сущ-p>: Jp- or Npp-;
+<макро-сущ-p> : NXp+
+	or (Xc- & NXp- & (NXp+ or [[[[{App-} & {AIpp+} & {Ppp+} & {PIpp-} & <сущ-p>]]]]))
+	or (Xi- & NXp- & {App-} & {AIpp+} & {Ppp+} & {PIpp-} & <сущ-p>);
+<существительное-mi>: ((({M+} & {[[Ami-]]}) or ({Ami-} & {[[AImi+]]}) or ({M+} & {[[AImi+]]}) or {G+}) & {@Pmi+ or @PImi-} & {Xn-} & {Xia-} & {@EI-} & {I+} & (Ji- or (Sm3+ or MVAim- or SIm3- or [[Wd-]]) or ((Xt- or [[]]) & S-) or Nim- or <макро-сущ-i>)) or (Ami- & Ami- & {Xia-} & Sm3+ );
+<существительное-ni>: (({M+} & {[[Ani-]]}) or {[[AIni+]]} or {G+}) & {@Pni+ or @PIni-} & {Xn-} & {Xia-} & {@EI-} & (Ji- or (Sn3+ or MVAin- or SIn3- or [[Wd-]]) or ((Xt- or [[]]) & S-) or Nin- or <макро-сущ-i>);
+<существительное-fi>: (({M+} & {[[Afi-]]}) or {[[AIfi+]]} or {G+}) & {@Pfi+ or @PIfi-} & {Xn-} & {Xia-} & {@EI-} & (Ji- or (Sf3+ or MVAif- or SIf3- or [[Wd-]]) or ((Xt- or [[]]) & S-) or Nif- or <макро-сущ-i>);
+% первые минуты обычно самые страшные
+<существительное-pi>: ((({M+} & {[[Api-]]}) or {[[AIpi+]]} or {G+}) & {@Ppi+ or @PIpi-} & {Xn-} & {Xia-} & {@EI-} & (Ji- or (Sp+ or MVAip- or SIp- or [[Wd-]]) or ((Xt- or [[]]) & S-) or Nip- or <макро-сущ-i>)) or (Api- & Api- & {Xia-} & Sp+) or (Api- & Wd- &  AIpi+) ;
+<существительное-mg>: (({M+} & {[[Amg-]]}) or {[[AImg+]]} or {G+}) & {@Pmg+ or @PImg-} & {Xn-} & {Xia-} & {@EI-} & (Jg- or [Mg-] or [[MVag- or MVIag+]] or Ngm- or <макро-сущ-g>);
+<существительное-ng>: (({M+} & {[[Ang-]]}) or {[[AIng+]]} or {G+}) & {@Png+ or @PIng-} & {Xn-} & {Xia-} & {@EI-} & (Jg- or [Mg-] or [[MVag- or MVIag+]] or Ngn- or <макро-сущ-g>);
+<существительное-fg>: (({M+} & {[[Afg-]]}) or {[[AIfg+]]} or {G+}) & {@Pfg+ or @PIfg-} & {Xn-} & {Xia-} & {@EI-} & (Jg- or [Mg-] or [[MVag- or MVIag+]] or Ngf- or <макро-сущ-g>);
+<существительное-pg>: (({M+} & {[[Apg-]]}) or {[[AIpg+]]} or {G+}) & {@Ppg+ or @PIpg-} & {Xn-} & {Xia-} & {@EI-} & (Jg- or [Mg-] or [[MVag- or MVIag+]] or Ngp- or <макро-сущ-g>);
+<существительное-md>: (({M+} & {[[Amd-]]}) or {[[AImd+]]} or {G+}) & {@Pmd+ or @PImd-} & {Xn-} & {Xia-} & {@EI-} & (Jd- or [[MVad-]] or [[MVIad+]] or Ndm- or <макро-сущ-d>);
+<существительное-nd>: (({M+} & {[[And-]]}) or {[[AInd+]]} or {G+}) & {@Pnd+ or @PInd-} & {Xn-} & {Xia-} & {@EI-} & (Jd- or [[MVad-]] or [[MVIad+]] or Ndn- or <макро-сущ-d>);
+<существительное-fd>: (({M+} & {[[Afd-]]}) or {[[AIfd+]]} or {G+}) & {@Pfd+ or @PIfd-} & {Xn-} & {Xia-} & {@EI-} & (Jd- or [[MVad-]] or [[MVIad+]] or Ndf- or <макро-сущ-d>);
+<существительное-pd>: (({M+} & {[[Apd-]]}) or {[[AIpd+]]} or {G+}) & {@Ppd+ or @PIpd-} & {Xn-} & {Xia-} & {@EI-} & (Jd- or [[MVad-]] or [[MVIad+]] or Ndp- or <макро-сущ-d>);
+<существительное-mt>: (({M+} & {[[Amt-]]}) or {[[AImt+]]} or {G+}) & {@Pmt+ or @PImt-} & {Xn-} & {Xia-} & {@EI-} & (Jt- or AP- or [[MVat- or MVIat+]] or Ntm- or <макро-сущ-t>);
+<существительное-nt>: (({M+} & {[[Ant-]]}) or {[[AInt+]]} or {G+}) & {@Pnt+ or @PInt-} & {Xn-} & {Xia-} & {@EI-} & (Jt- or AP- or [[MVat- or MVIat+]] or Ntn- or <макро-сущ-t>);
+<существительное-ft>: (({M+} & {[[Aft-]]}) or {[[AIft+]]} or {G+}) & {@Pft+ or @PIft-} & {Xn-} & {Xia-} & {@EI-} & (Jt- or AP- or [[MVat- or MVIat+]] or Ntf- or <макро-сущ-t>);
+<существительное-pt>: (({M+} & {[[Apt-]]}) or {[[AIpt+]]} or {G+}) & {@Ppt+ or @PIpt-} & {Xn-} & {Xia-} & {@EI-} & (Jt- or AP- or [[MVat- or MVIat+]] or Ntp- or <макро-сущ-t>);
+<существительное-mp>: (({M+} & {[[Amp-]]}) or {[[AImp+]]} or {G+}) & {@Pmp+ or @PImp-} & {Xn-} & {Xia-} & {@EI-} & (Jp- or Npm- or <макро-сущ-p>);
+<существительное-np>: (({M+} & {[[Anp-]]}) or {[[AInp+]]} or {G+}) & {@Pnp+ or @PInp-} & {Xn-} & {Xia-} & {@EI-} & (Jp- or Npn- or <макро-сущ-p>);
+<существительное-fp>: (({M+} & {[[Afp-]]}) or {[[AIfp+]]} or {G+}) & {@Pfp+ or @PIfp-} & {Xn-} & {Xia-} & {@EI-} & (Jp- or Npf- or <макро-сущ-p>);
+<существительное-pp>: (({M+} & {[[App-]]}) or {[[AIpp+]]} or {G+}) & {@Ppp+ or @PIpp-} & {Xn-} & {Xia-} & {@EI-} & (Jp- or Npp- or <макро-сущ-p>);
+<существительное-fv>: (({M+} & {[[Afv-]]}) or {[[AIfv+]]} or {G+}) & {@Pfv+ or @PIfv-} & {Xn-} & {Xia-} & {@EI-} & (Jv- or [MVv-] or [MVIv+] or Nvf- or <макро-сущ-v>);
+<существительное-nv>: (({M+} & {[[Anv-]]}) or {[[AInv+]]} or {G+}) & {@Pnv+ or @PInv-} & {Xn-} & {Xia-} & {@EI-} & (Jv- or [MVv-] or [MVIv+] or Nvn- or <макро-сущ-v>);
+<существительное-mv>: (({M+} & {[[Amv-]]}) or {[[AImv+]]} or {G+}) & {@Pmv+ or @PImv-} & {Xn-} & {Xia-} & {@EI-} & (Jv- or [MVv-] or [MVIv+] or Nvm- or <макро-сущ-v>);
+
+%% МЕСТОИМЕНИЯ
+%% <мест-sub>: [{[AI+]} & {[A-]} & {Xn-} & {Xia-} & {@EI-} & {[M+]} & {P+} & {PI-}];
+<мест-sub>: [{[AI*i+]} & {[A-]} & {Xn-} & {Xia-} & {@EI-} & {[M+]} & {P+} & {PI-}];
+
+%% ПРИЛАГАТЕЛЬНЫЕ
+<прил-mi>: ( {EA-} & Ami+ ) or Asi+ or ( { EA- or ( EA- & EB- ) or ( EB- & EA- ) } & AImi- ) or AIsi- or Sm-;
+<макро-прил-mi> : AXmi+ or AXPmi+
+	or (Xc- & AXmi- & (AXmi+ or [<прил-mi>]))
+	or (Xi- & AXmi- & ([AXPmi+] or <прил-mi>))
+	or (AXPmi- & (AXPmi+ or <прил-mi>));
+<прил-mg>: ( {EA-} & Amg+ ) or Asg+ or AImg- or AIsg- or Sm-;
+<макро-прил-mg> : AXmg+ or AXPmg+
+	or (Xc- & AXmg- & (AXmg+ or [<прил-mg>]))
+	or (Xi- & AXmg- & ([AXPmg+] or <прил-mg>))
+	or (AXPmg- & (AXPmg+ or <прил-mg>));
+<прил-md>: ( {EA-} & Amd+ ) or Asd+ or AImd- or AIsd- or Sm-;
+<макро-прил-md> : AXmd+ or AXPmd+
+	or (Xc- & AXmd- & (AXmd+ or [<прил-md>]))
+	or (Xi- & AXmd- & ([AXPmd+] or <прил-md>))
+	or (AXPmd- & (AXPmd+ or <прил-md>));
+<прил-mv>: ( {EA-} & Amv+ ) or Asv+ or AImv- or AIsv- or Sm-;
+<макро-прил-mv> : AXmv+ or AXPmv+
+	or (Xc- & AXmv- & (AXmv+ or [<прил-mv>]))
+	or (Xi- & AXmv- & ([AXPmv+] or <прил-mv>))
+	or (AXPmv- & (AXPmv+ or <прил-mv>));
+<прил-mt>: ( {EA-} & Amt+ ) or Ast+ or ( {EA- or ( EA- & EB- ) or ( EB- & EA- ) } & AImt- ) or AIst- or Sm-;
+<макро-прил-mt> : AXmt+ or AXPmt+
+	or (Xc- & AXmt- & (AXmt+ or [<прил-mt>]))
+	or (Xi- & AXmt- & ([AXPmt+] or <прил-mt>))
+	or (AXPmt- & (AXPmt+ or <прил-mt>));
+<прил-mp>: ( {EA-} & Amp+ ) or Asp+ or AImp- or AIsp- or Sm-;
+<макро-прил-mp> : AXmp+ or AXPmp+
+	or (Xc- & AXmp- & (AXmp+ or [<прил-mp>]))
+	or (Xi- & AXmp- & ([AXPmp+] or <прил-mp>))
+	or (AXPmp- & (AXPmp+ or <прил-mp>));
+% это усилие было для него <b>слишком</b> <b>велико</b>
+<прил-ni>: ( {EA-} & Ani+ ) or Asi+ or ( {EA- or ( EA- & EB- ) or ( EB- & EA- ) } & AIni- ) or AIsi- or Sn-;
+<макро-прил-ni> : AXni+ or AXPni+
+	or (Xc- & AXni- & (AXni+ or [<прил-ni>]))
+	or (Xi- & AXni- & ([AXPni+] or <прил-ni>))
+	or (AXPni- & (AXPni+ or <прил-ni>));
+<прил-ng>: ( {EA-} & Ang+ ) or Asg+ or AIng- or AIsg- or Sn-;
+<макро-прил-ng> : AXng+ or AXPng+
+	or (Xc- & AXng- & (AXng+ or [<прил-ng>]))
+	or (Xi- & AXng- & ([AXPng+] or <прил-ng>))
+	or (AXPng- & (AXPng+ or <прил-ng>));
+<прил-nd>: ( {EA-} & And+ ) or Asd+ or AInd- or AIsd- or Sn-;
+<макро-прил-nd> : AXnd+ or AXPnd+
+	or (Xc- & AXnd- & (AXnd+ or [<прил-nd>]))
+	or (Xi- & AXnd- & ([AXPnd+] or <прил-nd>))
+	or (AXPnd- & (AXPnd+ or <прил-nd>));
+<прил-nv>: ( {EA-} & Anv+ ) or Asv+ or AInv- or AIsv- or Sn-;
+<макро-прил-nv> : AXnv+ or AXPnv+
+	or (Xc- & AXnv- & (AXnv+ or [<прил-nv>]))
+	or (Xi- & AXnv- & ([AXPnv+] or <прил-nv>))
+	or (AXPnv- & (AXPnv+ or <прил-nv>));
+% небо над головой было практически чистым
+<прил-nt>: ( {EA-} & Ant+ ) or Ast+ or ( {EA- or ( EA- & EB- ) or ( EB- & EA- ) } & AInt-) or AIst- or Sn-;
+<макро-прил-nt> : AXnt+ or AXPnt+
+	or (Xc- & AXnt- & (AXnt+ or [<прил-nt>]))
+	or (Xi- & AXnt- & ([AXPnt+] or <прил-nt>))
+	or (AXPnt- & (AXPnt+ or <прил-nt>));
+<прил-np>: ( {EA-} & Anp+ ) or Asp+ or AInp- or AIsp- or Sn-;
+<макро-прил-np> : AXnp+ or AXPnp+
+	or (Xc- & AXnp- & (AXnp+ or [<прил-np>]))
+	or (Xi- & AXnp- & ([AXPnp+] or <прил-np>))
+	or (AXPnp- & (AXPnp+ or <прил-np>));
+<прил-fi>: ( {EA-} & Afi+ ) or Asi+ or ( {EA- or ( EA- & EB- ) or ( EB- & EA- ) } & AIfi- ) or AIsi- or Sf-;
+<макро-прил-fi> : AXfi+ or AXPfi+
+	or (Xc- & AXfi- & (AXfi+ or [<прил-fi>]))
+	or (Xi- & AXfi- & ([AXPfi+] or <прил-fi>))
+	or (AXPfi- & (AXPfi+ or <прил-fi>));
+<прил-fg>: ( {EA-} & Afg+ ) or Asg+ or AIfg- or AIsg- or Sf-;
+<макро-прил-fg> : AXfg+ or AXPfg+
+	or (Xc- & AXfg- & (AXfg+ or [<прил-fg>]))
+	or (Xi- & AXfg- & ([AXPfg+] or <прил-fg>))
+	or (AXPfg- & (AXPfg+ or <прил-fg>));
+<прил-fd>: ( {EA-} & Afd+ ) or Asd+ or AIfd- or AIsd- or Sf-;
+<макро-прил-fd> : AXfd+ or AXPfd+
+	or (Xc- & AXfd- & (AXfd+ or [<прил-fd>]))
+	or (Xi- & AXfd- & ([AXPfd+] or <прил-fd>))
+	or (AXPfd- & (AXPfd+ or <прил-fd>));
+<прил-fv>: ( {EA-} & Afv+ ) or Asv+ or AIfv- or AIsv- or Sf-;
+<макро-прил-fv> : AXfv+ or AXPfv+
+	or (Xc- & AXfv- & (AXfv+ or [<прил-fv>]))
+	or (Xi- & AXfv- & ([AXPfv+] or <прил-fv>))
+	or (AXPfv- & (AXPfv+ or <прил-fv>));
+<прил-ft>: ( {EA-} & Aft+ ) or Ast+ or ({EA- or ( EA- & EB- ) or ( EB- & EA- ) } &  AIft-) or AIst- or Sf-;
+<макро-прил-ft> : AXft+ or AXPft+
+	or (Xc- & AXft- & (AXft+ or [<прил-ft>]))
+	or (Xi- & AXft- & ([AXPft+] or <прил-ft>))
+	or (AXPft- & (AXPft+ or <прил-ft>));
+<прил-fp>: ( {EA-} & Afp+ ) or Asp+ or AIfp- or AIsp- or Sf-;
+<макро-прил-fp> : AXfp+ or AXPfp+
+	or (Xc- & AXfp- & (AXfp+ or [<прил-fp>]))
+	or (Xi- & AXfp- & ([AXPfp+] or <прил-fp>))
+	or (AXPfp- & (AXPfp+ or <прил-fp>));
+<прил-pi>: ( {EA-} & Api+ ) or ( {EA- or ( EA- & EB- ) or ( EB- & EA- ) } & AIpi- ) or Sp-;
+%<прил-pi>: ( {EA-} & Api+ ) or AIpi- or Sp-;
+<макро-прил-pi> : AXpi+ or AXPpi+
+	or (Xc- & AXpi- & (AXpi+ or [<прил-pi>]))
+	or (Xi- & AXpi- & ([AXPpi+] or <прил-pi>))
+	or (AXPpi- & (AXPpi+ or <прил-pi>));
+<прил-pg>: ( {EA-} & Apg+ ) or AIpg- or Sp-;
+<макро-прил-pg> : AXpg+ or AXPpg+
+	or (Xc- & AXpg- & (AXpg+ or [<прил-pg>]))
+	or (Xi- & AXpg- & ([AXPpg+] or <прил-pg>))
+	or (AXPpg- & (AXPpg+ or <прил-pg>));
+<прил-pd>: ( {EA-} & Apd+ ) or AIpd- or Sp-;
+<макро-прил-pd> : AXpd+ or AXPpd+
+	or (Xc- & AXpd- & (AXpd+ or [<прил-pd>]))
+	or (Xi- & AXpd- & ([AXPpd+] or <прил-pd>))
+	or (AXPpd- & (AXPpd+ or <прил-pd>));
+<прил-pv>: ( {EA-} & Apv+ ) or AIpv- or Sp-;
+<макро-прил-pv> : AXpv+ or AXPpv+
+	or (Xc- & AXpv- & (AXpv+ or [<прил-pv>]))
+	or (Xi- & AXpv- & ([AXPpv+] or <прил-pv>))
+	or (AXPpv- & (AXPpv+ or <прил-pv>));
+<прил-pt>: ( {EA-} & Apt+ ) or AIpt- or Sp-;
+<макро-прил-pt> : AXpt+ or AXPpt+
+	or (Xc- & AXpt- & (AXpt+ or [<прил-pt>]))
+	or (Xi- & AXpt- & ([AXPpt+] or <прил-pt>))
+	or (AXPpt- & (AXPpt+ or <прил-pt>));
+<прил-pp>: ( {EA-} & App+ ) or AIpp- or Sp-;
+<макро-прил-pp> : AXpp+ or AXPpp+
+	or (Xc- & AXpp- & (AXpp+ or [<прил-pp>]))
+	or (Xi- & AXpp- & ([AXPpp+] or <прил-pp>))
+	or (AXPpp- & (AXPpp+ or <прил-pp>));
+<прил->: A+ or AI- or S-;
+<макро-прил-> : AX+ or AXP+
+	or (Xc- & AX- & (AX+ or [<прил->]))
+	or (Xi- & AX- & ([AXP+] or <прил->))
+	or (AXP- & (AXP+ or <прил->));
+%% ГЛАГОЛЫ
+
+% глаголы, 3л, нст и буд
+<глагол-нп-sub>: {Xn-} & {Xia-} & {EI-} & (({E+} & {MVv+ or MVat+}) or I+ or  II-);
+<глагол-нп-sub2>:  {EI-} & {MVIa-} & ({DI- or D+}) & (({E+} & {MVv+ or (MVad+ & MVag+)}) or I+ or  II-);
+
+<глагол-пе-sub>: {Xn-} & {Xia-} & {EI-} & (({E+} & {MVv+ or ( IMI- & MVat+ ) or MVat+ or MVap+ or (MVad+ & MVag+)} ) or I+ or II-);
+<глагол-пе-sub2>: {EI-} & {@MVI-}  & ({DI- or D+}) & (({E+} & {MVv+ or [[@MV+]] or ( IMI- & MVat+ ) or MVat+ or MVap+ or (MVad+ & MVag+)} & {E+} & {[[@MV+]] or (MVad+ & MVag+)}) or I+ or II-);
+
+<глагол-нп-sub-dat>: {Xn-} & {Xia-} & {EI-} & (({E+} & {MVv+ or MVad+ or (MVad+ & MVag+)}) or I+ or  II-);
+<глагол-нп-sub2-dat>:  {EI-} & {MVIad-} & ({DI- or D+}) & (({E+} & {MVv+ or MVad+ or (MVad+ & MVag+)}) or I+ or  II-);
+
+<глагол-нп-sub-gen>: {Xn-} & {Xia-} & {EI-} & (({E+} & {MVv+ or MVag+ or (MVad+ & MVag+)}) or I+ or  II-);
+<глагол-нп-sub2-gen>:  {EI-} & {MVIag-} & ({DI- or D+}) & (({E+} & {MVv+ or MVag+ or (MVad+ & MVag+)}) or I+ or  II-);
+
+<глагол-нп-sub-tv>: {Xn-} & {Xia-} & {EI-} & (({E+} & {MVv+ or MVat+ }) or I+ or  II-);
+<глагол-нп-sub2-tv>: {EI-} & {MVIat-} & ({DI- or D+}) & (({E+} & {MVv+ or MVat+ }) or I+ or  II-);
+
+<глагол-3s>: Sn3- or Sm3- or Sf3- or SIm3+ or SIn3+ or SIf3+;
+<глагол-3p>: Sp3- or SIp3+;
+<макро-глагол-3s> : VX3s+
+	or [[]];
+<макро-глагол-3p> : VX3p+
+	or [[]];
+
+
+<глагол-1s>: Ss1- or SIs1+;
+<макро-глагол-1s> : VX1s+
+	or [[]];
+
+<глагол-1p>: Sp1- or SIp1+;
+<макро-глагол-1p> : VX1p+
+	or [[]];
+
+<глагол-2s>: Ss2- or SIs2+;
+<макро-глагол-2s> : VX2s+
+	or [[]];
+
+<глагол-2p>: Sp2- or SIp2+;
+<макро-глагол-2p> : VX2p+
+	or [[]];
+
+% глаголы, прш
+
+%% <глагол-нп-пр-sub>: {Xn-} & {Xia-} & {XIb+} & {EI-} & {@MVIa-} & {DI- or D+} & (({E+} & {[[@MVa+]] or MVv+ or (MVad+ & MVag+)}) or I+ or II-);
+%% <глагол-нп-пр-sub>: {Xn-} & {Xia-} & {XIb+} & {EI-} & { MVIa- } & {DI- or D+} & ( ( {E+} & { [[@MVa+]] or MVv+ or (MVad+ & MVag+) } ) or I+ or II- );
+
+<глагол-нп-пр-sub>: ({Xn-} & {Xia-} & {XIb+} & {EI-} & ( ( {E+} & {  MVv+ or (MVad+ & MVag+) } ) )) or (I+ or II-) ;
+<глагол-нп-пр-sub2>: ( {EI-} & { MVIa- } & ( ( {E+} & { MVv+ or (MVad+ & MVag+) } ) )) or (DI- or D+) or (I+ or II-);
+
+<глагол-нп-пр-sub-gen>: ({Xn-} & {Xia-} & {XIb+} & {EI-} & ( ( {E+} & {  (MVag+ & MVad+) or (MVag+ & MVat+) or MVag+ } ) )) or (I+ or II-) ;
+<глагол-нп-пр-sub2-gen>: ( {EI-} & { MVIa- } & ( ( {E+} & { MVv+ or (MVag+ & MVad+) or MVag+  } ) )) or (DI- or D+) or (I+ or II-);
+
+<глагол-нп-пр-sub-dat>: {Xn-} & {Xia-} & {XIb+} & {EI-} & ( ( {E+} & { MVv+ or (MVad+ & MVag+) or MVad+ } ) or I+ or II- );
+<глагол-нп-пр-sub2-dat>: {EI-} & { MVIa- } & {DI- or D+} & ( ( {E+} & { MVv+ or (MVad+ & MVag+) or MVad+  } ) or I+ or II- );
+
+<глагол-нп-пр-sub-tv>: {Xn-} & {Xia-} & {XIb+} & {EI-} & ( ( {E+} & { MVv+ or (MVat+ & MVad+) or MVat+ } ) or I+ or II- );
+<глагол-нп-пр-sub2-tv>: {EI-} & { MVIa- } & {DI- or D+} & ( ( {E+} & { MVv+ or (MVat+ & MVad+) or MVat+  } ) or I+ or II- );
+
+<глагол-нп-пр-sub-pr>: ( {Xn-} & {Xia-} & {XIb+} & {EI-} & ( ( {E+} & { MVv+ or (MVap+ & MVad+) or MVap+ } ) ) ) or (I+ or II-);
+<глагол-нп-пр-sub2-pr>: ( {EI-} & { MVIa- } & ( ( {E+} & { MVv+ or (MVap+ & MVad+) or MVap+  } ) ) ) or (DI- or D+) or (I+ or II-);
+
+<глагол-пе-пр-sub>: { IM+  or Xn-} & {Xia-} & {XIb+} & {EI-} & ( ( { MVv+ } & {E+} ));
+<глагол-пе-пр-sub2>:  ( {EI-} & { MVI- } & ( ( {E+} & { MVv+ or (MVv+ and AInt+) or (MVad+ & MVag+) } & {E+} ) or I+ or ( { IMI- } & II-))) or ( DI- or D+ );
+
+% хочется устроить неприятности людям
+<глагол-пе-пр-sub-dat>: { IM+  or Xn-} & {Xia-} & {XIb+} & {EI-} & ( ( { MVv+ } & {E+} ));
+<глагол-пе-пр-sub2-dat>:  ( {EI-} & { MVI- } & ( ( {E+} & { MVv+ or MVad+ or (MVd+ & AInt+) } & {E+} ) or I+ or ( { IMI- } & II-))) or ( DI- or D+ );
+
+
+<глагол-пе-пр-sub-tv>: { IM+  or Xn-} & {Xia-} & {XIb+} & {EI-} & ( ( { MVv+ } & {E+} ));
+<глагол-пе-пр-sub2-tv>:  {EI-} & { MVI- } & ( ( {E+} & { MVv+ or (MVv+ and AInt+) or (MVat+ & MVag+) or MVat+ } & {E+} ) or I+ or ( { IMI- } & II-));
+
+
+<глагол-pm>: Sm- or Ss- or SIm+ or SIs+;
+<макро-глагол-pm> : VXpm+
+	or [[]];
+<глагол-pn>: Sn- or Ss- or SIn+ or SIs+;
+<макро-глагол-pn> : VXpn+
+	or [[]];
+<глагол-pf>: Sf- or Ss- or SIf+ or SIs+;
+<макро-глагол-pf> : VXpf+
+	or [[]];
+<глагол-pp>: Sp- or SIp+;
+<макро-глагол-pp> : VXpp+
+	or [[]];
+
+<макро-глагол-i> : VXi+
+	or (Xc- & VXi- & (VXi+ or [<глагол-i>]))
+	or (Xi- & VXi- & <глагол-i>)
+	or [[]];
+<глагол-pmi>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pmid- ) or PImid+;
+<глагол-smi>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pmis- ) or PImis+;
+<макро-глагол-pmi> : VXpmi+
+	or (Xc- & VXpmi- & (VXpmi+ or [<глагол-pmi>]))
+	or (Xi- & VXpmi- & <глагол-pmi>)
+	or [[]];
+<макро-глагол-smi> : VXsmi+
+	or (Xc- & VXsmi- & (VXsmi+ or [<глагол-smi>]))
+	or (Xi- & VXsmi- & <глагол-smi>)
+	or [[]];
+<глагол-pmg>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pmgd- ) or PImgd+;
+<глагол-smg>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pmgs- ) or PImgs+;
+<макро-глагол-pmg> : VXpmg+
+	or (Xc- & VXpmg- & (VXpmg+ or [<глагол-pmg>]))
+	or (Xi- & VXpmg- & <глагол-pmg>)
+	or [[]];
+<макро-глагол-smg> : VXsmg+
+	or (Xc- & VXsmg- & (VXsmg+ or [<глагол-smg>]))
+	or (Xi- & VXsmg- & <глагол-smg>)
+	or [[]];
+<глагол-pmd>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pmdd- ) or PImdd+;
+<глагол-smd>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pmds- ) or PImds+;
+<макро-глагол-pmd> : VXpmd+
+	or (Xc- & VXpmd- & (VXpmd+ or [<глагол-pmd>]))
+	or (Xi- & VXpmd- & <глагол-pmd>)
+	or [[]];
+<макро-глагол-smd> : VXsmd+
+	or (Xc- & VXsmd- & (VXsmd+ or [<глагол-smd>]))
+	or (Xi- & VXsmd- & <глагол-smd>)
+	or [[]];
+<глагол-pmv>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pmvd- ) or PImvd+;
+<глагол-smv>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pmvs- ) or PImvs+;
+<макро-глагол-pmv> : VXpmv+
+	or (Xc- & VXpmv- & (VXpmv+ or [<глагол-pmv>]))
+	or (Xi- & VXpmv- & <глагол-pmv>)
+	or [[]];
+<макро-глагол-smv> : VXsmv+
+	or (Xc- & VXsmv- & (VXsmv+ or [<глагол-smv>]))
+	or (Xi- & VXsmv- & <глагол-smv>)
+	or [[]];
+<глагол-pmt>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pmtd- ) or PImtd+;
+<глагол-smt>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pmts- ) or PImts+;
+<макро-глагол-pmt> : VXpmt+
+	or (Xc- & VXpmt- & (VXpmt+ or [<глагол-pmt>]))
+	or (Xi- & VXpmt- & <глагол-pmt>)
+	or [[]];
+<макро-глагол-smt> : VXsmt+
+	or (Xc- & VXsmt- & (VXsmt+ or [<глагол-smt>]))
+	or (Xi- & VXsmt- & <глагол-smt>)
+	or [[]];
+<глагол-pmp>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pmpd- ) or PImpd+;
+<глагол-smp>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pmps- ) or PImps+;
+<макро-глагол-pmp> : VXpmp+
+	or (Xc- & VXpmp- & (VXpmp+ or [<глагол-pmp>]))
+	or (Xi- & VXpmp- & <глагол-pmp>)
+	or [[]];
+<макро-глагол-smp> : VXsmp+
+	or (Xc- & VXsmp- & (VXsmp+ or [<глагол-smp>]))
+	or (Xi- & VXsmp- & <глагол-smp>)
+	or [[]];
+<глагол-pni>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pnid- ) or PInid+;
+<глагол-sni>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pnis- ) or PInis+;
+<макро-глагол-pni> : VXpni+
+	or (Xc- & VXpni- & (VXpni+ or [<глагол-pni>]))
+	or (Xi- & VXpni- & <глагол-pni>)
+	or [[]];
+<макро-глагол-sni> : VXsni+
+	or (Xc- & VXsni- & (VXsni+ or [<глагол-sni>]))
+	or (Xi- & VXsni- & <глагол-sni>)
+	or [[]];
+<глагол-png>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pngd- ) or PIngd+;
+<глагол-sng>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pngs- ) or PIngs+;
+<макро-глагол-png> : VXpng+
+	or (Xc- & VXpng- & (VXpng+ or [<глагол-png>]))
+	or (Xi- & VXpng- & <глагол-png>)
+	or [[]];
+<макро-глагол-sng> : VXsng+
+	or (Xc- & VXsng- & (VXsng+ or [<глагол-sng>]))
+	or (Xi- & VXsng- & <глагол-sng>)
+	or [[]];
+<глагол-pnd>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pndd- ) or PIndd+;
+<глагол-snd>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pnds- ) or PInds+;
+<макро-глагол-pnd> : VXpnd+
+	or (Xc- & VXpnd- & (VXpnd+ or [<глагол-pnd>]))
+	or (Xi- & VXpnd- & <глагол-pnd>)
+	or [[]];
+<макро-глагол-snd> : VXsnd+
+	or (Xc- & VXsnd- & (VXsnd+ or [<глагол-snd>]))
+	or (Xi- & VXsnd- & <глагол-snd>)
+	or [[]];
+<глагол-pnv>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pnvd- ) or PInvd+;
+<глагол-snv>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pnvs- ) or PInvs+;
+<макро-глагол-pnv> : VXpnv+
+	or (Xc- & VXpnv- & (VXpnv+ or [<глагол-pnv>]))
+	or (Xi- & VXpnv- & <глагол-pnv>)
+	or [[]];
+<макро-глагол-snv> : VXsnv+
+	or (Xc- & VXsnv- & (VXsnv+ or [<глагол-snv>]))
+	or (Xi- & VXsnv- & <глагол-snv>)
+	or [[]];
+<глагол-pnt>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pntd- ) or PIntd+;
+<глагол-snt>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pnts- ) or PInts+;
+<макро-глагол-pnt> : VXpnt+
+	or (Xc- & VXpnt- & (VXpnt+ or [<глагол-pnt>]))
+	or (Xi- & VXpnt- & <глагол-pnt>)
+	or [[]];
+<макро-глагол-snt> : VXsnt+
+	or (Xc- & VXsnt- & (VXsnt+ or [<глагол-snt>]))
+	or (Xi- & VXsnt- & <глагол-snt>)
+	or [[]];
+<глагол-pnp>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pnpd- ) or PInpd+;
+<глагол-snp>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pnps- ) or PInps+;
+<макро-глагол-pnp> : VXpnp+
+	or (Xc- & VXpnp- & (VXpnp+ or [<глагол-pnp>]))
+	or (Xi- & VXpnp- & <глагол-pnp>)
+	or [[]];
+<макро-глагол-snp> : VXsnp+
+	or (Xc- & VXsnp- & (VXsnp+ or [<глагол-snp>]))
+	or (Xi- & VXsnp- & <глагол-snp>)
+	or [[]];
+<глагол-pfi>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pfid- ) or PIfid+;
+<глагол-sfi>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pfis- ) or PIfis+;
+<макро-глагол-pfi> : VXpfi+
+	or (Xc- & VXpfi- & (VXpfi+ or [<глагол-pfi>]))
+	or (Xi- & VXpfi- & <глагол-pfi>)
+	or [[]];
+<макро-глагол-sfi> : VXsfi+
+	or (Xc- & VXsfi- & (VXsfi+ or [<глагол-sfi>]))
+	or (Xi- & VXsfi- & <глагол-sfi>)
+	or [[]];
+<глагол-pfg>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pfgd- ) or PIfgd+;
+<глагол-sfg>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pfgs- ) or PIfgs+;
+<макро-глагол-pfg> : VXpfg+
+	or (Xc- & VXpfg- & (VXpfg+ or [<глагол-pfg>]))
+	or (Xi- & VXpfg- & <глагол-pfg>)
+	or [[]];
+<макро-глагол-sfg> : VXsfg+
+	or (Xc- & VXsfg- & (VXsfg+ or [<глагол-sfg>]))
+	or (Xi- & VXsfg- & <глагол-sfg>)
+	or [[]];
+<глагол-pfd>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pfdd- ) or PIfdd+;
+<глагол-sfd>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pfds- ) or PIfds+;
+<макро-глагол-pfd> : VXpfd+
+	or (Xc- & VXpfd- & (VXpfd+ or [<глагол-pfd>]))
+	or (Xi- & VXpfd- & <глагол-pfd>)
+	or [[]];
+<макро-глагол-sfd> : VXsfd+
+	or (Xc- & VXsfd- & (VXsfd+ or [<глагол-sfd>]))
+	or (Xi- & VXsfd- & <глагол-sfd>)
+	or [[]];
+<глагол-pfv>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pfvd- ) or PIfvd+;
+<глагол-sfv>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pfvs- ) or PIfvs+;
+<макро-глагол-pfv> : VXpfv+
+	or (Xc- & VXpfv- & (VXpfv+ or [<глагол-pfv>]))
+	or (Xi- & VXpfv- & <глагол-pfv>)
+	or [[]];
+<макро-глагол-sfv> : VXsfv+
+	or (Xc- & VXsfv- & (VXsfv+ or [<глагол-sfv>]))
+	or (Xi- & VXsfv- & <глагол-sfv>)
+	or [[]];
+<глагол-pft>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pftd- ) or PIftd+;
+<глагол-sft>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pfts- ) or PIfts+;
+<макро-глагол-pft> : VXpft+
+	or (Xc- & VXpft- & (VXpft+ or [<глагол-pft>]))
+	or (Xi- & VXpft- & <глагол-pft>)
+	or [[]];
+<макро-глагол-sft> : VXsft+
+	or (Xc- & VXsft- & (VXsft+ or [<глагол-sft>]))
+	or (Xi- & VXsft- & <глагол-sft>)
+	or [[]];
+<глагол-pfp>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pfpd- ) or PIfpd+;
+<глагол-sfp>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pfps- ) or PIfps+;
+<макро-глагол-pfp> : VXpfp+
+	or (Xc- & VXpfp- & (VXpfp+ or [<глагол-pfp>]))
+	or (Xi- & VXpfp- & <глагол-pfp>)
+	or [[]];
+<макро-глагол-sfp> : VXsfp+
+	or (Xc- & VXsfp- & (VXsfp+ or [<глагол-sfp>]))
+	or (Xi- & VXsfp- & <глагол-sfp>)
+	or [[]];
+<глагол-ppi>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Ppid- ) or PIpid+;
+<глагол-spi>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Ppis- ) or PIpis+;
+<макро-глагол-ppi> : VXppi+
+	or (Xc- & VXppi- & (VXppi+ or [<глагол-ppi>]))
+	or (Xi- & VXppi- & <глагол-ppi>)
+	or [[]];
+<макро-глагол-spi> : VXspi+
+	or (Xc- & VXspi- & (VXspi+ or [<глагол-spi>]))
+	or (Xi- & VXspi- & <глагол-spi>)
+	or [[]];
+<глагол-ppg>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Ppgd- ) or PIpgd+;
+<глагол-spg>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Ppgs- ) or PIpgs+;
+<макро-глагол-ppg> : VXppg+
+	or (Xc- & VXppg- & (VXppg+ or [<глагол-ppg>]))
+	or (Xi- & VXppg- & <глагол-ppg>)
+	or [[]];
+<макро-глагол-spg> : VXspg+
+	or (Xc- & VXspg- & (VXspg+ or [<глагол-spg>]))
+	or (Xi- & VXspg- & <глагол-spg>)
+	or [[]];
+<глагол-ppd>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Ppdd- ) or PIpdd+;
+<глагол-spd>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Ppds- ) or PIpds+;
+<макро-глагол-ppd> : VXppd+
+	or (Xc- & VXppd- & (VXppd+ or [<глагол-ppd>]))
+	or (Xi- & VXppd- & <глагол-ppd>)
+	or [[]];
+<макро-глагол-spd> : VXspd+
+	or (Xc- & VXspd- & (VXspd+ or [<глагол-spd>]))
+	or (Xi- & VXspd- & <глагол-spd>)
+	or [[]];
+<глагол-ppv>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Ppvd- ) or PIpvd+;
+<глагол-spv>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Ppvs- ) or PIpvs+;
+<макро-глагол-ppv> : VXppv+
+	or (Xc- & VXppv- & (VXppv+ or [<глагол-ppv>]))
+	or (Xi- & VXppv- & <глагол-ppv>)
+	or [[]];
+<макро-глагол-spv> : VXspv+
+	or (Xc- & VXspv- & (VXspv+ or [<глагол-spv>]))
+	or (Xi- & VXspv- & <глагол-spv>)
+	or [[]];
+<глагол-ppt>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pptd- ) or PIptd+;
+<глагол-spt>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Ppts- ) or PIpts+;
+<макро-глагол-ppt> : VXppt+
+	or (Xc- & VXppt- & (VXppt+ or [<глагол-ppt>]))
+	or (Xi- & VXppt- & <глагол-ppt>)
+	or [[]];
+<макро-глагол-spt> : VXspt+
+	or (Xc- & VXspt- & (VXspt+ or [<глагол-spt>]))
+	or (Xi- & VXspt- & <глагол-spt>)
+	or [[]];
+<глагол-ppp>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Pppd- ) or PIppd+;
+<глагол-spp>: ( (Xc- or <costly-null>) & (XIc+ or <costly-null>) & Ppps- ) or PIpps+;
+<макро-глагол-ppp> : VXppp+
+	or (Xc- & VXppp- & (VXppp+ or [<глагол-ppp>]))
+	or (Xi- & VXppp- & <глагол-ppp>)
+	or [[]];
+<макро-глагол-spp> : VXspp+
+	or (Xc- & VXspp- & (VXspp+ or [<глагол-spp>]))
+	or (Xi- & VXspp- & <глагол-spp>)
+	or [[]];
+<глагол-d>: {Xc-} & {XIc+} & (D- or DI+);
+<макро-глагол-d> : VXd+
+	or (Xc- & VXd- & (VXd+ or [<глагол-d>]))
+	or (Xi- & VXd- & <глагол-d>)
+	or [[]];
+
+
+<глагол-pr>: Wd-;
+<макро-глагол-pr> : VXpr+
+	or (Xc- & VXpr- & (VXpr+ or [<глагол-pr>]))
+	or (Xi- & VXpr- & <глагол-pr>)
+	or [[]];
+
+%% ПРИЛАГАТЕЛЬНЫЕ
+<нар>:[({Xc-} & E- ) or ({[[XIc+]]} & EI+) or {Xt- & S-}];
+%% <макро-нар> : EX+ or EXP+ or (Xc- & EX- & (EX+ or [<нар>]))
+<макро-нар> : EX+ or (Xc- & EX- & (EX+ or [<нар>]))
+	or (Xi- & EX- & ([EXP+] or <нар>))
+	or (EXP- & (EXP+ or <нар>));

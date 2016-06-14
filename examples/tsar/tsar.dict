@@ -1,0 +1,9 @@
+%
+% Get opinion of the Guru of any subject
+%
+
+#include "ru.grammar"
+
+% #include "ru/suffix.dict"
+
+aнскил лалк : LL+;

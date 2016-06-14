@@ -88,7 +88,9 @@ makeRuleset outfile rr =
                                       Minus -> downlinks
                        setter %= TT.insertWith (S.union) li (S.singleton myId)
                 Macro m ->
-                  go myId $ macros M.! m
+                  go myId $ case m `M.lookup` macros of
+                              Just x -> x
+                              Nothing -> error $ "Undefined macro: " ++ m
                 _ ->
                   mapM_ (\(s, n) -> local (n:) $ go myId s) $ zip u [0..]
         

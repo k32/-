@@ -102,7 +102,7 @@ data MyState =
   , _lastResolvedId :: Int
   }
 
-type KobZipper = ([LinkID], [LinkID])
+type Disjunct = ([LinkID], [LinkID])
 
 {- | Given a rule, return list of zippers pointing to links mating with
 the given one -}
@@ -113,15 +113,15 @@ findConnections x = go . fromTree
   where go z =
           case label z of
             Link {_link=l}
-              | x' =*= l -> [z]
-              | True     -> []
+              | x' =*= l -> z : (go' $ next z)
+              | True     -> go' $ next z
             _ ->
               go' (firstChild z) ++ go' (next z)
 
         go' x = (toList x) >>= go
 
         x' = flipLink x
-        
+
 natalyze :: (MonadVoretion m)
          => Config
          -> (LinkID -> [Rule'])
@@ -139,7 +139,7 @@ natalyze cfg mate allRules =
        -> m (Kobenation, [Pointer])
     go kob = do
       State{_lastResolvedId=lastId, _currentId=currId} <- get
-      sorted <- liftMaybe $ trySort $ getConstraints kob
+      sorted <- liftMaybeCry (_debug cfg) "FAIL: Order failure" $ trySort $ getConstraints kob
       if currId - 1 == lastId
          then return (kob, sorted)
          else do
@@ -150,12 +150,12 @@ natalyze cfg mate allRules =
        where f Resolved{_word=NLPWord{_nlpword=w}, _order=o} = "KOBENATION: " ++ w ++ " " ++ show o
              
   in (`evalStateT` state₀) $ do
-    Rule' {_lval'=words, _links'=seed} <- pickRandom allRules
-    word <- pickRandom words {- TODO: We don't need to backtrack here! #-}
+    Rule' {_lval'=words, _links'=seed} <- pickRandom True allRules
+    word <- pickRandom False words
     myId <- nextId
     kob₀ <- addRows (V.singleton undefined) (myId, word) =<< downhill cfg seed
     (kob', order) <- go kob₀
-    guard $ not $ null order
+    guardCry (_debug cfg) "FAIL: Empty order" $ not $ null order
     dbg kob' $ map (_word . (kob' V.!)) order
 
 
@@ -180,12 +180,12 @@ getConstraints kob =
                 | True   = Just [i]
     ret = (resRows >>= order1st) ++ ([0..length resRows - 1] >>= order2nd)
   in
-    {- trace (show $ ret) $ -} ret
+    ret
 
 addRows :: (MonadState MyState m)
         => Kobenation
         -> (Pointer, NLPWord)
-        -> KobZipper
+        -> Disjunct
         -> m Kobenation
 addRows k₀ (up, w) (before, after) = do {- TODO: Check +/- order accordingly -}
   before' <- replicateM (length before) nextId
@@ -204,18 +204,19 @@ tvoretion :: (MonadState MyState m, MonadVoretion m)
 tvoretion cfg mate kob₀ = do
   i <- (+1) <$> _lastResolvedId <$> get
   let Unresolved link = kob₀ V.! i
-  r <- pickRandom $ mate link
-  w <- pickRandom $ _lval' r {- TODO: again, we don't need to backtrack here -}
-  row <- kobenate cfg =<< pickRandom (findConnections link $ _links' r)
+  r <- pickRandom True $ mate link
+  w <- pickRandom False $ _lval' r
+  let conns = findConnections link $ _links' r
+  row <- kobenate cfg =<< pickRandom True conns
   addRows kob₀ (i, w) row
 
-(\++/) :: KobZipper -> KobZipper -> KobZipper
+(\++/) :: Disjunct -> Disjunct -> Disjunct
 (a1, b1) \++/ (a2, b2) = (a1 ++ a2, b1 ++ b2)  
 
 kobenate :: (MonadVoretion m)
          => Config
          -> RuleZipper
-         -> m KobZipper
+         -> m Disjunct
 kobenate cfg z = uphill ([], []) z 
   where
     climb t x =
@@ -250,13 +251,13 @@ nextId = do
 downhill' :: (MonadVoretion m)
           => Config
           -> [Link]
-          -> m KobZipper
+          -> m Disjunct
 downhill' cfg x = foldl (\++/) ([], []) <$> mapM (downhill cfg) x
 
 downhill :: (MonadVoretion m)
          => Config
          -> Link
-         -> m KobZipper
+         -> m Disjunct
 downhill cfg l0@(Node label subforest) =
   case label of
     Optional _ ->
@@ -271,7 +272,7 @@ downhill cfg l0@(Node label subforest) =
            return $ a \++/ b)
          {-else-} (return ([], []))
     LinkOr{} ->
-      downhill cfg =<< pickRandom subforest
+      downhill cfg =<< pickRandom True subforest
     LinkAnd{} ->
       downhill' cfg subforest
     Cost{} ->
