@@ -34,6 +34,6 @@ main = do
     Left x      -> putStrLn x
     Right rules -> do
              makeRuleset (_outfile cliopts) rules
-             mapM (putStrLn . pretty) $ take 20 rules
+             --mapM (putStrLn . pretty) $ take 20 rules
              --mapM (putStrLn . drawTree . fmap show . _links) $ take 20 rules
-             printf "...\nOk, imported %d rules\n" $ length rules
+             printf "Ok, imported %d rules\n" $ length rules

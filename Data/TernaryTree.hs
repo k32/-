@@ -10,6 +10,7 @@ module Data.TernaryTree
        , fromList
        , toList
        , foldWithKey
+       , keys
        ) where
 
 import qualified Data.Foldable as Fld
@@ -163,6 +164,10 @@ fromList =  foldl (flip $ uncurry insert) empty
 toList :: TTree k v
        -> [([k], v)]
 toList = foldWithKey (\k v a -> (k, v):a) []
+
+keys :: TTree k v
+     -> [[k]]
+keys = foldWithKey (\k _ l -> k:l) []
 
 foldWithKey :: ([k] -> v -> a -> a)
             -> a

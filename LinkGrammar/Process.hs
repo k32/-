@@ -102,7 +102,17 @@ makeRuleset outfile rr =
         putStrLn "Dumping rules..."
         index <- (`execStateT` ruleset0) $ mapM (dumpRule hRules) $ zip [0..] rules
         encodeFile (outfile ++ ".index") $ index & ruleset %~ reverse
+        putStrLn "Searching for rules that never match..."
+        let (sUp, sDown) = findSingletones index
+        putStrLn $ "+: " ++ show sUp
+        putStrLn $ "-: " ++ show sDown
 
+findSingletones :: RulesetIndex
+                -> ([LinkName], [LinkName])
+findSingletones idx = ([i | i<-keys $ _uplinks idx, f _downlinks i]
+                      ,[i | i<-keys $ _downlinks idx, f _uplinks i])
+  where f g = null . relaxedLookup (*<) True (g idx)
+  
 -- withRuleset :: FilePath -> (Ruleset Handle -> IO a) -> IO a
 -- withRuleset filePath f = do
 --   ruleset <- (decodeFile $ filePath ++ ".idx") :: IO (Ruleset ())

@@ -257,9 +257,11 @@ class PickRandom c where
              -> m a
 
 instance PickRandom [] where
-  pickRandom b l = guardCry False "FAIL: nothing to pick from" (not $ null l) >> (l !!) <$> (v $ length l - 1)
+  pickRandom {- b -} _ l = guardCry False "FAIL: nothing to pick from" (not $ null l) >> (l !!) <$> (v $ length l - 1)
     where v | b = discreteUniform
             | True = \x -> getRandomR (0, x)
+
+          b = True
 
 instance PickRandom V.Vector where
   pickRandom b l = (l V.!) <$> (v $ V.length l - 1)

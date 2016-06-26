@@ -22,6 +22,7 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import Voretion.Config
 import Data.Maybe (mapMaybe)
+import Data.Either (lefts)
 
 {-
 * Overview of the Topological Voretion Method:
@@ -39,7 +40,7 @@ Kobenation is:
 3: [C-]       <--- Remaining rules aren't resolved yet
 ....
 
-Elements of the vector are called called Kobs
+An elements of the vector is called called Kob
 
 Now we can translate Kobenation to a set of 1st order constraints:
 0: [2:<:0, 0:<:1]
@@ -91,7 +92,7 @@ data Kob =
     _word :: NLPWord
   , _order :: [Pointer]
   } |
-  Unresolved LinkID
+  Unresolved Pointer LinkID
   deriving (Show)
 
 type Kobenation = V.Vector Kob
@@ -102,7 +103,31 @@ data MyState =
   , _lastResolvedId :: Int
   }
 
-type Disjunct = ([LinkID], [LinkID])
+type QuasiLink = Either LinkID Pointer
+
+type Disjunct = ([QuasiLink], [QuasiLink])
+
+type DisjunctZ = (([QuasiLink], [QuasiLink], Maybe QuasiLink)
+                 ,([QuasiLink], [QuasiLink], Maybe QuasiLink))
+
+-- Add a + link left of the current one
+(+|) :: DisjunctZ -> QuasiLink -> DisjunctZ
+d +| l = d&_2._1%~(l:)
+
+-- Add a + link right of the current one
+(|+) :: DisjunctZ -> QuasiLink -> DisjunctZ
+d |+ l = d&_2._2%~(l:)
+
+-- Add a - link left of the current one
+(-|) :: DisjunctZ -> QuasiLink -> DisjunctZ
+d -| l = d&_1._1%~(l:)
+
+-- Add a - link right of the current one
+(|-) :: DisjunctZ -> QuasiLink -> DisjunctZ
+d |- l = d&_1._2%~(l:)
+
+toDisjunct :: DisjunctZ -> Disjunct
+toDisjunct ((a,b,x), (c,d,y)) = (reverse a ++ toList x ++ b, reverse c ++ toList y ++ d)
 
 {- | Given a rule, return list of zippers pointing to links mating with
 the given one -}
@@ -122,6 +147,16 @@ findConnections x = go . fromTree
 
         x' = flipLink x
 
+dbgKob :: Config
+       -> Kobenation
+       -> a
+       -> a
+dbgKob cfg kob x | _debug cfg = trace (unlines $ map f $ V.toList kob) x
+                 | True       = x
+   where f Resolved{_word=NLPWord{_nlpword=w}, _order=o} = "KOBENATION: " ++ w ++ " " ++ show o
+         f (Unresolved link p) = "KOBENATION: " ++ show link ++ " " ++ show p
+
+
 natalyze :: (MonadVoretion m)
          => Config
          -> (LinkID -> [Rule'])
@@ -139,16 +174,13 @@ natalyze cfg mate allRules =
        -> m (Kobenation, [Pointer])
     go kob = do
       State{_lastResolvedId=lastId, _currentId=currId} <- get
-      sorted <- liftMaybeCry (_debug cfg) "FAIL: Order failure" $ trySort $ getConstraints kob
+      sorted <- liftMaybeCry (_debug cfg) "FAIL: Order failure" $
+                  dbgKob cfg kob $ trySort $ getConstraints cfg kob
       if currId - 1 == lastId
          then return (kob, sorted)
          else do
            go =<< tvoretion cfg mate kob
 
-    dbg kob x | _debug cfg = trace (unlines $ map f $ V.toList kob) $ return x
-              | True       = return x
-       where f Resolved{_word=NLPWord{_nlpword=w}, _order=o} = "KOBENATION: " ++ w ++ " " ++ show o
-             
   in (`evalStateT` state₀) $ do
     Rule' {_lval'=words, _links'=seed} <- pickRandom True allRules
     word <- pickRandom False words
@@ -156,12 +188,13 @@ natalyze cfg mate allRules =
     kob₀ <- addRows (V.singleton undefined) (myId, word) =<< downhill cfg seed
     (kob', order) <- go kob₀
     guardCry (_debug cfg) "FAIL: Empty order" $ not $ null order
-    dbg kob' $ map (_word . (kob' V.!)) order
+    return $ dbgKob cfg kob' $ map (_word . (kob' V.!)) order
 
 
-getConstraints :: Kobenation
+getConstraints :: Config
+               -> Kobenation
                -> [Ineq Pointer]
-getConstraints kob =
+getConstraints cfg kob =
   let
     resolved (Resolved _ x) = Just x
     resolved _ = Nothing
@@ -178,36 +211,50 @@ getConstraints kob =
             
             f j | i /= j = resolved $ kob V.! j
                 | True   = Just [i]
-    ret = (resRows >>= order1st) ++ ([0..length resRows - 1] >>= order2nd)
+
+    constr1st = (resRows >>= order1st)
+    constr2nd = ([0..length resRows - 1] >>= order2nd)
+
+    dbg | _debug cfg =
+           trace ("1st order constraints: " ++ show constr1st ++
+                  "\n2nd order constraints: " ++ show constr2nd)
+        | True = id
   in
-    ret
+    dbg $ constr1st -- ++ constr2nd
 
 addRows :: (MonadState MyState m)
         => Kobenation
         -> (Pointer, NLPWord)
         -> Disjunct
         -> m Kobenation
-addRows k₀ (up, w) (before, after) = do {- TODO: Check +/- order accordingly -}
-  before' <- replicateM (length before) nextId
-  after' <- replicateM (length after) nextId
-  let row = before' ++ (up : after')
-      new = V.fromList $ map Unresolved $ before ++ after
-  state <- get
-  put $ state{_lastResolvedId=up}
-  return $ (k₀ V.// [(up, Resolved w row)]) V.++ new
+addRows k₀ (up, w) (before, after) =
+  let
+    go (Left _) = nextId
+    go (Right x) = return x
+  in do {- TODO: Check +/- order accordingly -}
+    before' <- mapM go before
+    after' <- mapM go after
+    let row = before' ++ (up : after')
+        new = V.fromList $ map (Unresolved up) $ lefts $ before ++ after
+    state <- get
+    put $ state{_lastResolvedId=up}
+    return $ (k₀ V.// [(up, Resolved w row)]) V.++ new
   
 tvoretion :: (MonadState MyState m, MonadVoretion m)
-           => Config
-           -> (LinkID -> [Rule'])
-           -> Kobenation
-           -> m Kobenation
+          => Config
+          -> (LinkID -> [Rule'])
+          -> Kobenation
+          -> m Kobenation
 tvoretion cfg mate kob₀ = do
   i <- (+1) <$> _lastResolvedId <$> get
-  let Unresolved link = kob₀ V.! i
+  let Unresolved myId link = kob₀ V.! i
   r <- pickRandom True $ mate link
   w <- pickRandom False $ _lval' r
   let conns = findConnections link $ _links' r
-  row <- kobenate cfg =<< pickRandom True conns
+      d₀ = case _linkDirection link of
+             Minus -> ([], [Right myId])
+             Plus  -> ([Right myId], [])
+  row <- kobenate cfg d₀ =<< pickRandom True conns
   addRows kob₀ (i, w) row
 
 (\++/) :: Disjunct -> Disjunct -> Disjunct
@@ -215,9 +262,10 @@ tvoretion cfg mate kob₀ = do
 
 kobenate :: (MonadVoretion m)
          => Config
+         -> Disjunct
          -> RuleZipper
          -> m Disjunct
-kobenate cfg z = uphill ([], []) z 
+kobenate cfg d₀ z = uphill d₀ z 
   where
     climb t x =
       case parent x of
@@ -229,7 +277,7 @@ kobenate cfg z = uphill ([], []) z
                     else id) $
       case label <$> parent x of
         Just (LinkAnd{}) -> do
-          i <- downhill' cfg $ before x
+          i <- downhill' cfg $ reverse $ before x
           j <- downhill' cfg $ after x
           climb (i \++/ t \++/ j) x
         _ ->
@@ -281,5 +329,5 @@ downhill cfg l0@(Node label subforest) =
       return ([], [])
     Link{_link=i} -> do
       case _linkDirection i of
-        Plus  -> return ([], [i])
-        Minus -> return ([i], [])
+        Plus  -> return ([], [Left i])
+        Minus -> return ([Left i], [])

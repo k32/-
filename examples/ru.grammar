@@ -5,7 +5,7 @@
 %% http://sz.ru/parser/
 %% svp dot zuzino.net.ru, svp dot tj.ru
 %%
-
+<costly-null>: [[[[]]]];
 
 <наречие-куда>: ({Xc-} & Ed-) or ({XIc+} & EId+) or ({Xt- & S-});
 <наречие-откуда>: ({Xc-} & Es-) or ({XIc+} & EIs+) or Mp- or ({Xt-} & S-);
@@ -18,6 +18,7 @@
 <дополнение-без>: Mp- or <наречие-как>;
 <кроме>: ((Xc- & Mp-) or <наречие-как>) & {XIc+};
 
+<точка> : {@XIc-} &  Xp- & ((W+ & Xp+) or RW+);
 "!" : {@XIc-} &  Xp- & RW+ ;
 "?" : ( {@XIc-} &  Xp- & RW+) or (Xq-) ;
 "," : Xc+ or @XIc- or [[<точка>]];
@@ -551,6 +552,7 @@ RIGHT-WALL: {Xc-} & RW-;
 	or (Xi- & VXd- & <глагол-d>)
 	or [[]];
 
+<глагол-i>: I- or II+ or [Wd-];
 
 <глагол-pr>: Wd-;
 <макро-глагол-pr> : VXpr+
@@ -564,3 +566,5 @@ RIGHT-WALL: {Xc-} & RW-;
 <макро-нар> : EX+ or (Xc- & EX- & (EX+ or [<нар>]))
 	or (Xi- & EX- & ([EXP+] or <нар>))
 	or (EXP- & (EXP+ or <нар>));
+
+#include "morph.dict"
