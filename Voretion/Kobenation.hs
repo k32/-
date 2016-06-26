@@ -175,7 +175,7 @@ natalyze cfg mate allRules =
     go kob = do
       State{_lastResolvedId=lastId, _currentId=currId} <- get
       sorted <- liftMaybeCry (_debug cfg) "FAIL: Order failure" $
-                  dbgKob cfg kob $ trySort $ getConstraints cfg kob
+                  {- dbgKob cfg kob $-} trySort $ getConstraints cfg kob
       if currId - 1 == lastId
          then return (kob, sorted)
          else do
