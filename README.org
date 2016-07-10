@@ -1,7 +1,28 @@
 #+TITLE: Zen Master
 
-* Введение
-"Дзенский мастер" -- это вореционный генератор синтаксически-верной
-психозы. Он использует топологические вореции (твореции) для
-установления связей между частями предложения. Также в планах
-интеграция с традиционными вореционными генерециями.
+It was a small research project aimed to find out whether Link Grammar
+created for natural language parsing could also be used to generate
+grammatically correct random texts. E.g. a small link grammar like
+below:
+
+#+BEGIN_SRC txt
+cat dog : AR- & @AD- & V+;
+
+a : ARu+;
+
+the : ARd+;
+
+runs sleeps : V- & { D- };
+
+gray lazy : AD+;
+
+slowly soundly : D+;
+#+END_SRC
+
+generates following texts:
+
+=A gray lazy cat runs. The dog soundly sleeps.= and so on.
+
+The result was quite disappointing: large NLP grammars used in spell
+checkers aren't suitable for the text synthesis. The result didn't
+look natural or funny.
