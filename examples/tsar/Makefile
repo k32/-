@@ -1,6 +1,7 @@
 PARSER = LinkGrammar
 
-PREPROC = cpp -nostdinc -CC -P
+#PREPROC = cpp -nostdinc -CC -E
+PREPROC = cpp -nostdinc -E
 
 build/tsar.index : build/tsar.out
 	$(PARSER) -o build/tsar build/tsar.out

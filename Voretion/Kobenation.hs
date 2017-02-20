@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, TupleSections, TemplateHaskell #-}
 module Voretion.Kobenation (
     trySort
   , natalyze
@@ -15,15 +15,17 @@ import Data.List
 import Debug.Trace
 import Data.PrettyPrint
 import Data.Foldable
-import Data.Tree.Zipper
+import Data.Tree.Zipper hiding (last)
 import Data.Nontransitive
 import qualified Data.Vector as V
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Voretion.Config
-import Data.Maybe (mapMaybe)
+import Data.Maybe (mapMaybe, fromJust, maybeToList)
 import Data.Either (lefts)
-
+import Data.Function (on)
+import Text.Printf
+    
 {-
 * Overview of the Topological Voretion Method:
 
@@ -82,7 +84,6 @@ Stop if there are no unresolved rules.
 
 -}
 
-
 type Pointer = Int
 
 type RuleZipper = TreePos Full NodeType
@@ -94,12 +95,60 @@ data Kob =
   } |
   Unresolved Pointer LinkID
   deriving (Show)
+makeLenses ''Kob
 
 type Kobenation = V.Vector Kob
 
+data DrawAction = Line Int Int | SymbolAt Int Char | Vertical Int deriving Show
+               
+asciiDraw :: Int -> [DrawAction] -> String
+asciiDraw l = V.toList . foldl draw (V.replicate l ' ')
+  where
+    draw v (Line a b) = v V.//(zip [a'+1..b'-1]['-','-'..]++[(a'+1,','),(b'-1,'.')])
+      where a' = min a b
+            b' = max a b
+    draw v (SymbolAt i s) = v V.//[(i,s)]
+    draw v (Vertical i) = case v V.! i of{a|(a==)`any`" |"->v V.//[(i,'|')];_ -> v V.//[(i,'+')]}
+                                   
+drawKob :: Kobenation -> [Pointer] -> String
+drawKob kob order =
+  let
+    zz f x l = fst $ unzip $ scanl f x l
+    sorted = map (kob V.!) order
+    positions = drop 1 $ zz wordPos (0,0) sorted
+    maxpos = Data.List.last positions + 1
+    wordPos (_,l) (Unresolved ptr _) = (l+2, l+3)
+    wordPos (_,l) (Resolved{_word = w}) = (l+1+t`div` 2, l+1+t)
+      where t = length $ _nlpword w
+    links = zip [0..] (V.toList kob) >>= getLinks & mapped . both %~ getIdx
+      where getIdx = fromJust . (`elemIndex` order)            
+    getLinks (i, Resolved{_order = k}) = map (i,) $ filter (>i) k
+    getLinks (i, _) = []
+    drawLink (_,l) x = (cl, l')
+      where x' = map (\(a,b)->(positions!!a-1,positions!!b-1)) x
+            l' = l++(x'>>=(\(a,b)->[Vertical a, Vertical b]))
+            cl = asciiDraw maxpos (map(uncurry Line)x'++l) ++ '\n':asciiDraw maxpos l'
+    bottom = unwords $ map f sorted
+        where f (Resolved w _) = w ^. nlpword
+              f (Unresolved p _) = "??"
+
+    splitIntersect [] = []
+    splitIntersect l = g:splitIntersect t'
+      where (g,t') = go l []
+            intersect (a, b) (c, d) | a < c && b < c = False
+                                    | a > c && a > d = False
+                                    | True = True
+            go (a:t) acc | (intersect a) `any` acc = (acc, a:t)
+                         | True = go t (a:acc)
+            go [] acc = (acc, [])
+    upperLayers = reverse $ zz drawLink ([], []) $ splitIntersect $
+                    sortBy (compare `on` negate . abs . uncurry (-)) links
+  in
+    unlines $ reverse $ bottom : upperLayers
+
 data MyState =
   State {
-    _currentId 
+    _currentId
   , _lastResolvedId :: Int
   }
 
@@ -149,13 +198,22 @@ findConnections x = go . fromTree
 
 dbgKob :: Config
        -> Kobenation
+       -> Maybe [Pointer]
        -> a
        -> a
-dbgKob cfg kob x | _debug cfg = trace (unlines $ map f $ V.toList kob) x
-                 | True       = x
-   where f Resolved{_word=NLPWord{_nlpword=w}, _order=o} = "KOBENATION: " ++ w ++ " " ++ show o
-         f (Unresolved link p) = "KOBENATION: " ++ show link ++ " " ++ show p
+dbgKob cfg kob Nothing | _debug cfg =
+                             trace (dbgKob' kob ++ "//!!!!!! FAIL: Order failure !!!!!!!!!!!")
+                       | True = id
+dbgKob cfg kob (Just ord) | _debug cfg = trace (drawKob kob ord ++ dbgKob' kob)
+                          | True       = id
 
+dbgKob' :: Kobenation -> String
+dbgKob' = unlines . map (uncurry f) . zip [0..] . V.toList
+    where f :: Int -> Kob -> String
+          f n Resolved{_word=NLPWord{_nlpword=w}, _order=o} = printf "//KOBENATION %d: %s %s" n w (show o)
+          f n (Unresolved link p) = printf "//KOBENATION %d: [%d] %s" n link (show p)
+                                 
+dup f a = f a a
 
 natalyze :: (MonadVoretion m)
          => Config
@@ -164,7 +222,7 @@ natalyze :: (MonadVoretion m)
          -> m [NLPWord]
 natalyze cfg mate allRules =
   let
-    state₀ = State {
+    state₀ = State { 
                _currentId = 0
              , _lastResolvedId = 0
              }
@@ -174,8 +232,7 @@ natalyze cfg mate allRules =
        -> m (Kobenation, [Pointer])
     go kob = do
       State{_lastResolvedId=lastId, _currentId=currId} <- get
-      sorted <- liftMaybeCry (_debug cfg) "FAIL: Order failure" $
-                  {- dbgKob cfg kob $-} trySort $ getConstraints cfg kob
+      sorted <- liftMaybe $ dup (dbgKob cfg kob) $ trySort $ getConstraints cfg kob
       if currId - 1 == lastId
          then return (kob, sorted)
          else do
@@ -188,39 +245,91 @@ natalyze cfg mate allRules =
     kob₀ <- addRows (V.singleton undefined) (myId, word) =<< downhill cfg seed
     (kob', order) <- go kob₀
     guardCry (_debug cfg) "FAIL: Empty order" $ not $ null order
-    return $ dbgKob cfg kob' $ map (_word . (kob' V.!)) order
+    return $ dbgKob cfg kob' (Just order) $ map (_word . (kob' V.!)) order
 
+zeroorder :: Kobenation -> [Ineq Pointer]
+zeroorder = nub . concat . V.toList . V.imap (\i k->case k of
+                                                Unresolved{} -> []
+                                                Resolved{_order=o} -> resolved i o)
+    where resolved i = uncurry (++) . (map (:<:i) *** (map (i:<:) . tail)) . break (==i)
+           
+resolved :: Kob -> Bool
+resolved (Resolved _ _) = True
+resolved _ = False
 
+order2nd :: Config
+         -> Kobenation
+         -> Maybe [Ineq Pointer] -- TODO: Ugly O(n^2) algorithm
+order2nd cfg kob = do
+  let links' = zeroorder kob
+  grouped <- tryGroup links'
+  if _debug cfg then
+      trace ("// 0-order links: "++show links'++"\n// 0-order groups: " ++ show grouped) $
+            return ()
+  else
+      return ()
+  let grouped' = V.generate (length $ concat grouped) findIdx
+      same = (==) `on` (grouped' V.!)
+      less = (<) `on` (grouped' V.!)
+
+      findIdx a = fromJust $ findIndex (elem a) grouped
+
+      pairs [] = []
+      pairs (a:t) = map (\i->[a,i]) t ++ pairs t
+      
+      fffindme args@[(a:<:b),(c:<:d)] | a == c || a == d || b == c || b == d = Nothing
+                                      | a `less` c && b `less` d = Just $ dbg $ b:<:c
+                                      | c `less` a && d `less` b = Just $ dbg $ d:<:a
+                                      -- a == b
+                                      -- | a `same` c && b `less` d = Just $ c:<:a
+                                      -- | a `same` c && d `less` b = Just $ a:<:c
+                                      -- -- b == d
+                                      -- | b `same` d && a `less` c = Just $ d:<:b
+                                      -- | b `same` d && c `less` a = Just $ b:<:d
+                                      | True = Nothing
+                                     where dbg x  | _debug cfg =
+                                                      trace ("// "++show args++" -> "++show x) x
+                                                  | True = x
+
+  return $ nub $ mapMaybe fffindme $ pairs links'
+    
 getConstraints :: Config
                -> Kobenation
                -> [Ineq Pointer]
 getConstraints cfg kob =
-  let
-    resolved (Resolved _ x) = Just x
-    resolved _ = Nothing
+  let    
+    resRows = map _order $ filter resolved $ V.toList kob
 
-    resolved' (Resolved _ x) = x
-    resolved' _ = error "resolved': Not resolved"
-    
-    resRows = mapMaybe resolved $ V.toList kob
+    order1st l = nub $ map (uncurry (:<:)) $ zip l $ drop 1 l
 
-    order1st l = map (uncurry (:<:)) $ zip l $ drop 1 l
+    digraph = "xx[shape=plaintext label=\"" ++ show (tryGroup constr1st) ++ "\"];" ++
+              (constr1st >>= (\(a:<:b)->printf "%d -> %d [color=\"red\"];" b a)) ++
+              (constr2nd >>= (\(a:<:b)->printf "%d -> %d [color=\"blue\"];" b a)) ++
+              (zeroorder kob >>= (\(a:<:b)->printf "%d -> %d [color=\"black\"];" b a))
+    -- order1' _ _[_]acc=filter(\(a:<:b)->a/=b)acc
+    -- order1' i l(a:r:t)acc
+    --     |i==a=order1' i a(r:t)acc
+    --     |True=case kob V.!a of
+    --             Resolved{_order=o}->order1' i a(r:t) $ l:<:head o:last o:<:r:acc
+    --             _->order1' i a(r:t)acc
 
-    order2nd i = map (\(a, b) -> Data.List.last a :<: head b) $ zip ll $ drop 1 ll
-      where ll = mapMaybe f $ resolved' $ kob V.! i
-            
-            f j | i /= j = resolved $ kob V.! j
-                | True   = Just [i]
+    -- constr1'=V.imap(\i rr -> case rr of
+    --                            Resolved{_order=(a:t)}->order1' i a t[]
+    --                            _ -> [])kob&V.foldl1'(++)
 
-    constr1st = (resRows >>= order1st)
-    constr2nd = ([0..length resRows - 1] >>= order2nd)
+    constr1st = nub $ resRows >>= order1st -- ++ constr1'
+    constr2nd = case order2nd cfg kob of
+                  Just x -> x
+                  Nothing -> []
 
     dbg | _debug cfg =
-           trace ("1st order constraints: " ++ show constr1st ++
-                  "\n2nd order constraints: " ++ show constr2nd)
+           trace ("//1st order constraints: " ++ show constr1st ++
+                  -- "\n1' order constraints: " ++ show constr1' ++ 
+                  "\n//2nd order constraints: " ++ show constr2nd ++
+                  "\ndigraph {" ++ digraph ++ "}")
         | True = id
   in
-    dbg $ constr1st -- ++ constr2nd
+    dbg $ constr1st ++ constr2nd
 
 addRows :: (MonadState MyState m)
         => Kobenation

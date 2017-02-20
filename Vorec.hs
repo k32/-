@@ -110,10 +110,11 @@ psychoza cfg f =
     capitalyze = (\(a:l) -> toUpper a : l) . dropWhile (==' ')
     
     psychoza' a ('=':t) = return $ ' ':(a++t)
-    psychoza' a x | "MORPH-END" `isInfixOf` x = do
-      let stems = ["кантор", "ворец", "зожат", "лямбда", "тьюринг", "Исаев", "асимптот", "бесконечн", "останов", "терминир "]
-      stem <- getStdRandom $ randomR (0, length stems - 1)
-      return $ a ++ " " ++ ((stems!!stem) ++ drop (length "MORPH-END" + 1) x)
+--    psychoza' a x | "MORPH-END" `isInfixOf` x = do
+--      let stems = ["кантор", "ворец", "зожат", "лямбда", "тьюринг", "Исаев", "асимптот", "бесконечн", "останов", "терминир "]
+      -- stem <- getStdRandom $ randomR (0, length stems - 1)
+      -- return $ a ++ " " ++ ((stems!!stem) ++ drop (length "MORPH-END" + 1) x)
+    psychoza' a "" = return a
     psychoza' a t = return $ a++(' ':map unUnderscore t)
     
     humanyze t = do

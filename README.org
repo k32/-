@@ -1,5 +1,15 @@
 #+TITLE: Zen Master
 
+#+BEGIN_SRC txt
+  ,------.                
+ |        |               
+ |        |,-----------.  
+ |        |             | 
+ |     ,-.|      ,-----.| 
+ |    |   |     |       | 
+the gray dog soundly sleeps
+#+END_SRC
+
 It was a small research project aimed to find out whether Link Grammar
 created for natural language parsing could also be used to generate
 grammatically correct random texts. E.g. a small link grammar like

@@ -2,13 +2,39 @@ module Data.Nontransitive (
     Ineq(..)
   , related
   , trySort
+  , tryGroup
   ) where
 
 import Data.List (nub)
+import qualified Data.Vector as V
+import Data.Graph
+import Control.Monad.ST
 
 data Ineq a = a :<: a | FreeVal a
-  deriving (Show)
+  deriving (Show, Eq)
 
+data Compare = Less | More | Unknown
+
+data IneqGraph = IeqGraph {
+      _vtx2subgraph :: V.Vector Int
+    , _subgraphs :: V.Vector [[Int]]
+    }
+
+-- analyze :: [Ineq Int] -> IneqGraph
+-- analyze ineq =
+--     let
+--         lval (a :<: _) = a
+--         rval (_ :<: a) = a
+--         l = 1 + maximum $ map (\(a :<: b) -> max a b) ineq
+--         ineq_graph = [(i, i, [j | (j:<:k) <- ineq, k==i])| i<-[0..l-1]]
+--         scc = stronglyConnComp ineq_graph
+--     in runST $ do
+--       color <- V.generateM l (const -1)
+--       forM_ (zip [0..] scc) $ \(c, i) ->
+--           forM_ i $ \j ->
+--               color V.
+  
+           
 related :: (Eq a) => a -> [Ineq a] -> ([a], [a], [Ineq a])
 related = go ([], [], [])
   where
@@ -43,7 +69,7 @@ lessThan = go ([], [])
 The below algorithm is based on a lemma:
 Set of relations Sₛ on set S is transitive ⇒ ∃ s∈S, {i:<:s|i∈S} = ∅
 -}
-trySort :: (Eq a, Show a)
+trySort :: (Eq a)
         => [Ineq a]
         -> Maybe [a]
 trySort τ = fmap (nub . reverse) $ go [] [] τ
@@ -66,4 +92,33 @@ trySort τ = fmap (nub . reverse) $ go [] [] τ
           [] -> go (i:acc) [] $ FreeVal j:others
           _  -> go acc (v:acc2) t
 
-       
+tryGroup :: (Eq a)
+         => [Ineq a]
+         -> Maybe [[a]]
+tryGroup =
+  let
+    supp [] _ = True
+    supp (FreeVal _:t) i = supp t i
+    supp (a:<:_:t) i | a == i = False
+                     | True   = supp t i
+      
+    sup ineq = do
+      i <- ineq
+      let i' = case i of
+                 FreeVal a -> a
+                 (_ :<: a) -> a
+      case supp ineq i' of
+        True  -> return i'
+        False -> []
+
+    filterOut l x@(FreeVal a) = if (a==) `any` l then [] else return x
+    filterOut l x@(b:<:a)     = return $ if (a==) `any` l then FreeVal b else x
+
+    go acc [] = Just acc
+    go acc remaining =
+        case sup remaining of
+          [] -> Nothing
+          l  -> go (l':acc) $ filterOut l' =<< remaining
+              where l' = nub l
+  in
+    go []

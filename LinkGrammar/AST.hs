@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances, DeriveGeneric, TemplateHaskell #-}
 module LinkGrammar.AST
   (
     Link(..)
@@ -7,7 +7,7 @@ module LinkGrammar.AST
   , NodeType(..)
   , Rule(..)
   , LinkName, MacroName
-  , NLPWord(..)
+  , NLPWord(..), nlpword, nlpclass
   , LinkDirection(..)
   , LVal(..)
   , exactCompare
@@ -16,6 +16,7 @@ module LinkGrammar.AST
   )
   where
 
+import Control.Lens
 import Data.PrettyPrint
 import Data.List
 import Data.Tree
@@ -34,6 +35,11 @@ instance PrettyPrint LinkDirection where
   pretty Plus  = "+"
   pretty Minus = "-"
 
+data LinkID = LinkID {
+      _linkName :: LinkName
+    , _linkDirection :: LinkDirection
+    } deriving (Eq, Generic)
+
 instance Show LinkID where
     show (LinkID a b) = a ++ (pretty b)
 
@@ -42,13 +48,13 @@ type LinkName = String
 type MacroName = String
 
 data NLPWord =
-    NLPWord
-    {
+    NLPWord {
       _nlpword
     , _nlpclass :: String
     }
     deriving (Eq, Generic, Show)
-
+makeLenses ''NLPWord
+    
 instance Binary NLPWord
 instance NFData NLPWord
 
@@ -56,11 +62,6 @@ instance PrettyPrint NLPWord where
     pretty NLPWord {_nlpword = w, _nlpclass = c}
         | null c = w
         | True = w ++ ".[" ++ c ++ "]"
-
-data LinkID = LinkID {
-      _linkName :: LinkName
-    , _linkDirection :: LinkDirection
-    } deriving (Eq, Generic)
 
 instance Binary LinkID
 instance NFData LinkID

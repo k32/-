@@ -13,10 +13,10 @@ fi
 for file in $(find $directory -name '*.dict' -or -name '4.0.*' -and -not -name '*.bak')
 do
     sed  -i.bak                                       \
-         -e 's/^\/\([a-z0-9\/.]*\)/#include "\1"\n/g' \
-         -e 's/#include \+"\/\(.*\)"/#include "\1"/'  \
+         -e 's|^/\([a-z0-9/.]*\)|#include "\1"\'$'\n|g' \
+         -e 's|#include "/\(.*\)";?|#include "\1"\'$'\n|'  \
          $file
     echo "Preparing" $file
 done
 
-cpp -nostdinc -CC -P -I . -I $directory -o "$directory.dict.in" $main
+cpp -nostdinc -CC -P -I"." -I"$directory"  $main > "$directory.dict.in"
