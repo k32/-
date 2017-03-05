@@ -20,7 +20,7 @@ import Control.Monad.Voretion
 import System.Random (newStdGen, getStdRandom, random, randomR, StdGen)
 import Data.Char (toUpper)
 import Data.List (isInfixOf)
-
+import Data.Monoid
 import Debug.Trace
 
 cliOptions :: Parser Config

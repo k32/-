@@ -33,6 +33,7 @@ executable Voretion
                      , lens
                      , optparse-applicative
                      , deepseq
+                     , base64-bytestring
   
   -- Directories containing source files.
   -- hs-source-dirs:      
