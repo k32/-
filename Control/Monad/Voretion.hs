@@ -10,6 +10,7 @@ guaranteed!
 module Control.Monad.Voretion (
          Sample
        , liftMaybe
+       , liftEither
        , MonadVoretion(..)
        , PickRandom(..)
        , noRandom
@@ -245,6 +246,11 @@ instance (Default m) => MonadVoretion (Sample m) where
     , _range = r
     , _next = \a -> Val a
     }
+
+liftEither :: MonadVoretion m => Either l a -> m a
+liftEither (Right a) = guard True >> return a
+liftEither (Left l)  = guard False >> return (error "liftMaybe: Check spark plugs in your voretion engine")
+
 
 liftMaybe :: MonadVoretion m => Maybe a -> m a
 liftMaybe (Just a) = guard True >> return a
